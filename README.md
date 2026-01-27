@@ -1,20 +1,10 @@
 # HuanuCanvas 🎨
 
-<<<<<<< HEAD
 [![Build Status](https://github.com/tcJackClay/HuanuCanvas/actions/workflows/enhanced-ci-cd.yml/badge.svg)](https://github.com/tcJackClay/HuanuCanvas/actions)
 [![GitHub release](https://img.shields.io/github/release/tcJackClay/HuanuCanvas.svg)](https://GitHub.com/tcJackClay/HuanuCanvas/releases/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图像生成和创意管理。采用先进的GitFlow分支策略和完整的CI/CD流水线。
-=======
-<<<<<<< HEAD
-[![Deploy](https://github.com/yourusername/huanu-canvas/actions/workflows/deploy.yml/badge.svg)](https://github.com/yourusername/huanu-canvas/actions/workflows/deploy.yml)
-
-> HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图像生成和创意管理。
-=======
-HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图像生成和创意管理。
->>>>>>> 75be0b1286bc4219ece9724b60912456c057eaed
->>>>>>> develop
 
 ## ✨ 特性
 
@@ -36,18 +26,8 @@ HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图
 
 1. **克隆仓库**
    ```bash
-<<<<<<< HEAD
    git clone https://github.com/tcJackClay/HuanuCanvas.git
    cd HuanuCanvas
-=======
-<<<<<<< HEAD
-   git clone https://github.com/yourusername/huanu-canvas.git
-   cd huanu-canvas
-=======
-   git clone https://github.com/tcJackClay/HuanuCanvas.git
-   cd HuanuCanvas
->>>>>>> 75be0b1286bc4219ece9724b60912456c057eaed
->>>>>>> develop
    ```
 
 2. **初始化GitFlow**
@@ -69,7 +49,7 @@ HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图
 4. **配置环境**
    ```bash
    cp .env.example .env
-   # 编辑 .env 文件，填入必要的配置
+   # 编辑.env文件，填入必要的配置
    ```
 
 5. **启动开发服务**
@@ -104,18 +84,8 @@ HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图
 
 1. **克隆到服务器**
    ```bash
-<<<<<<< HEAD
    git clone https://github.com/tcJackClay/HuanuCanvas.git
    cd HuanuCanvas
-=======
-<<<<<<< HEAD
-   git clone https://github.com/yourusername/huanu-canvas.git
-   cd huanu-canvas
-=======
-   git clone https://github.com/tcJackClay/HuanuCanvas.git
-   cd HuanuCanvas
->>>>>>> 75be0b1286bc4219ece9724b60912456c057eaed
->>>>>>> develop
    ```
 
 2. **执行部署**
@@ -148,11 +118,30 @@ npm run typecheck
 ### 构建
 
 ```bash
-# 构建前端
-cd frontend && npm run build
+# 构建应用
+npm run build
 
-# 构建后端
-cd backend && npm run build
+# 打包Electron应用
+npm run package
+
+# 生成发布包
+npm run release
+```
+
+### 测试
+
+```bash
+# 运行所有测试
+npm test
+
+# 运行单元测试
+npm run test:unit
+
+# 运行集成测试
+npm run test:integration
+
+# 运行E2E测试
+npm run test:e2e
 ```
 
 ## 📚 API文档
@@ -164,6 +153,12 @@ cd backend && npm run build
 ### 画布API
 - `GET /api/canvas` - 获取画布列表
 - `POST /api/canvas` - 创建新画布
+
+### AI生成API
+- `POST /api/ai/generate-image` - 生成AI图像
+- `GET /api/ai/generations` - 获取生成历史
+
+详细的API文档请参考: [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)
 
 ## 🐛 故障排除
 
@@ -183,6 +178,16 @@ cd backend && npm run build
    # 设置正确权限
    sudo chown -R $USER:$USER /opt/huanu-canvas
    chmod +x scripts/*.sh
+   ```
+
+3. **构建失败**
+   ```bash
+   # 清理并重新安装依赖
+   rm -rf node_modules package-lock.json
+   npm install
+   
+   # 重新构建
+   npm run build
    ```
 
 ## 🤝 贡献指南
@@ -315,9 +320,74 @@ Closes #123"
 5. **文档更新**: 相关文档及时更新
 6. **代码审查**: 认真进行代码审查，提供建设性反馈
 
+## 📊 监控和分析
+
+### 实时监控
+- 系统健康状态监控
+- 性能指标追踪
+- 错误日志收集
+- 用户行为分析
+
+### 性能指标
+- API响应时间
+- 页面加载速度
+- 资源使用率
+- 用户交互延迟
+
+### 日志管理
+- 结构化日志记录
+- 分布式追踪
+- 日志聚合和分析
+- 告警和通知
+
+## 🔧 工具链
+
+### 开发工具
+- **Vite**: 快速构建工具
+- **TypeScript**: 类型安全的JavaScript
+- **ESLint**: 代码规范检查
+- **Prettier**: 代码格式化
+
+### 测试工具
+- **Jest**: 单元测试框架
+- **Testing Library**: React组件测试
+- **Playwright**: E2E测试
+
+### CI/CD工具
+- **GitHub Actions**: 持续集成/部署
+- **Docker**: 容器化部署
+- **GitFlow**: 分支管理策略
+
+## 📋 项目结构
+
+```
+HuanuCanvas/
+├── .github/              # GitHub配置和模板
+│   ├── workflows/        # CI/CD工作流
+│   ├── ISSUE_TEMPLATE/   # Issue模板
+│   └── pull_request_template.md
+├── docs/                # 项目文档
+│   ├── API_DOCUMENTATION.md
+│   ├── CONTRIBUTING.md
+│   ├── GITFLOW_GUIDE.md
+│   └── SECURITY_POLICY.md
+├── scripts/             # 自动化脚本
+│   ├── gitflow.sh
+│   └── deploy-from-github.sh
+├── src/                 # 源代码
+│   ├── components/     # React组件
+│   ├── pages/         # 页面组件
+│   ├── hooks/          # 自定义Hooks
+│   └── utils/         # 工具函数
+├── electron/           # Electron主进程
+├── backend-nodejs/     # 后端API
+├── assets/            # 静态资源
+└── public/            # 公共文件
+```
+
 ## 📄 许可证
 
-本项目采用 MIT 许可证。
+本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
 
 ---
 
