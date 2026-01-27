@@ -1,10 +1,20 @@
 # HuanuCanvas 🎨
 
+<<<<<<< HEAD
 [![Build Status](https://github.com/tcJackClay/HuanuCanvas/actions/workflows/enhanced-ci-cd.yml/badge.svg)](https://github.com/tcJackClay/HuanuCanvas/actions)
 [![GitHub release](https://img.shields.io/github/release/tcJackClay/HuanuCanvas.svg)](https://GitHub.com/tcJackClay/HuanuCanvas/releases/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图像生成和创意管理。采用先进的GitFlow分支策略和完整的CI/CD流水线。
+=======
+<<<<<<< HEAD
+[![Deploy](https://github.com/yourusername/huanu-canvas/actions/workflows/deploy.yml/badge.svg)](https://github.com/yourusername/huanu-canvas/actions/workflows/deploy.yml)
+
+> HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图像生成和创意管理。
+=======
+HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图像生成和创意管理。
+>>>>>>> 75be0b1286bc4219ece9724b60912456c057eaed
+>>>>>>> develop
 
 ## ✨ 特性
 
@@ -26,8 +36,18 @@
 
 1. **克隆仓库**
    ```bash
+<<<<<<< HEAD
    git clone https://github.com/tcJackClay/HuanuCanvas.git
    cd HuanuCanvas
+=======
+<<<<<<< HEAD
+   git clone https://github.com/yourusername/huanu-canvas.git
+   cd huanu-canvas
+=======
+   git clone https://github.com/tcJackClay/HuanuCanvas.git
+   cd HuanuCanvas
+>>>>>>> 75be0b1286bc4219ece9724b60912456c057eaed
+>>>>>>> develop
    ```
 
 2. **初始化GitFlow**
@@ -84,8 +104,18 @@
 
 1. **克隆到服务器**
    ```bash
+<<<<<<< HEAD
    git clone https://github.com/tcJackClay/HuanuCanvas.git
    cd HuanuCanvas
+=======
+<<<<<<< HEAD
+   git clone https://github.com/yourusername/huanu-canvas.git
+   cd huanu-canvas
+=======
+   git clone https://github.com/tcJackClay/HuanuCanvas.git
+   cd HuanuCanvas
+>>>>>>> 75be0b1286bc4219ece9724b60912456c057eaed
+>>>>>>> develop
    ```
 
 2. **执行部署**
