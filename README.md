@@ -19,8 +19,8 @@ HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/tcJackClay/huanu-canvas.git
-   cd huanu-canvas
+   git clone https://github.com/tcJackClay/HuanuCanvas.git
+   cd HuanuCanvas
    ```
 
 2. **配置环境**
@@ -51,8 +51,8 @@ HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图
 
 1. **克隆到服务器**
    ```bash
-   git clone https://github.com/yourusername/huanu-canvas.git
-   cd huanu-canvas
+   git clone https://github.com/tcJackClay/HuanuCanvas.git
+   cd HuanuCanvas
    ```
 
 2. **执行部署**
