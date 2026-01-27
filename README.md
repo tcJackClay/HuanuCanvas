@@ -1,8 +1,6 @@
 # HuanuCanvas 🎨
 
-[![Deploy](https://github.com/tcJackClay/huanu-canvas/actions/workflows/deploy.yml/badge.svg)](https://github.com/tcJackClay/huanu-canvas/actions/workflows/deploy.yml)
-
-> HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图像生成和创意管理。
+HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图像生成和创意管理。
 
 ## ✨ 特性
 
