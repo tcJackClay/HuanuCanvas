@@ -1,147 +1,346 @@
-# HuanuCanvas Docker Compose 配置
+# HuanuCanvas 多环境 Docker Compose 配置
 # 版本: v1.4.1
+# 支持: development, staging, production
 
 version: '3.8'
 
+# 根据环境变量选择配置文件
+x-environment: &default-environment
+  NODE_ENV: ${NODE_ENV:-production}
+  GEMINI_API_KEY: ${GEMINI_API_KEY}
+  FRONTEND_URL: ${FRONTEND_URL:-http://frontend:80}
+
+x-restart-policy: &default-restart-policy
+  restart: unless-stopped
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
-  # 前端服务
+  # ========== 前端服务 ==========
   frontend:
     build:
       context: ..
       dockerfile: deployment/Dockerfile.frontend
-    container_name: huanu-frontend
+      args:
+        NODE_ENV: ${NODE_ENV:-production}
+    container_name: huanu-frontend-${NODE_ENV}
     ports:
-      - "80:80"
-      - "443:443"
+      - "${FRONTEND_HOST_PORT:-80}:80"
+      - "${FRONTEND_SSL_PORT:-443}:443"
     environment:
-      - NODE_ENV=production
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      <<: *default-environment
+      NGINX_HOST: ${DOMAIN:-localhost}
+      NGINX_PORT: 80
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./ssl:/etc/nginx/ssl:ro
-      - huanu_data:/app/data
-      - huanu_input:/app/input
-      - huanu_output:/app/output
-      - huanu_creative:/app/creative_images
-      - huanu_thumbnails:/app/thumbnails
-    restart: unless-stopped
+      - huanu_data_${NODE_ENV}:/app/data
+      - huanu_input_${NODE_ENV}:/app/input
+      - huanu_output_${NODE_ENV}:/app/output
+      - huanu_creative_${NODE_ENV}:/app/creative_images
+      - huanu_thumbnails_${NODE_ENV}:/app/thumbnails
+      - ./logs/nginx:/var/log/nginx
+    <<: *default-restart-policy
     networks:
-      - huanu-network
+      - huanu-network-${NODE_ENV}
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "com.huanu.environment=${NODE_ENV}"
 
-  # 后端API服务
+  # ========== 后端API服务 ==========
   backend:
     build:
       context: ..
       dockerfile: deployment/Dockerfile.backend
-    container_name: huanu-backend
+      args:
+        NODE_ENV: ${NODE_ENV:-production}
+    container_name: huanu-backend-${NODE_ENV}
     ports:
-      - "8765:8765"
+      - "${BACKEND_HOST_PORT:-8765}:8765"
     environment:
-      - NODE_ENV=production
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - FRONTEND_URL=http://frontend:80
+      <<: *default-environment
+      DATABASE_URL: ${DATABASE_URL:-}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      JWT_SECRET: ${JWT_SECRET:-default_jwt_secret}
+      SESSION_SECRET: ${SESSION_SECRET:-default_session_secret}
+      MAX_CONCURRENT_REQUESTS: ${MAX_CONCURRENT_REQUESTS:-10}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-900000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
     volumes:
-      - huanu_data:/app/data
-      - huanu_input:/app/input
-      - huanu_output:/app/output
-      - huanu_creative:/app/creative_images
-      - huanu_thumbnails:/app/thumbnails
-    restart: unless-stopped
+      - huanu_data_${NODE_ENV}:/app/data
+      - huanu_input_${NODE_ENV}:/app/input
+      - huanu_output_${NODE_ENV}:/app/output
+      - huanu_creative_${NODE_ENV}:/app/creative_images
+      - huanu_thumbnails_${NODE_ENV}:/app/thumbnails
+      - ./logs/backend:/app/logs
+    <<: *default-restart-policy
     networks:
-      - huanu-network
+      - huanu-network-${NODE_ENV}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
+    labels:
+      - "com.huanu.environment=${NODE_ENV}"
 
-  # Redis缓存 (可选)
+  # ========== Redis缓存服务 ==========
   redis:
     image: redis:7-alpine
-    container_name: huanu-redis
+    container_name: huanu-redis-${NODE_ENV}
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
-      - huanu_redis:/data
-    restart: unless-stopped
+      - huanu_redis_${NODE_ENV}:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    <<: *default-restart-policy
     networks:
-      - huanu-network
-    command: redis-server --appendonly yes
+      - huanu-network-${NODE_ENV}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    logging: *default-logging
 
-  # PostgreSQL数据库 (可选，用于高级功能)
+  # ========== PostgreSQL数据库 ==========
   postgres:
     image: postgres:15-alpine
-    container_name: huanu-postgres
+    container_name: huanu-postgres-${NODE_ENV}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     environment:
-      - POSTGRES_DB=huanu
-      - POSTGRES_USER=huanu
+      - POSTGRES_DB=${POSTGRES_DB:-huanu}
+      - POSTGRES_USER=${POSTGRES_USER:-huanu}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
-      - huanu_postgres:/var/lib/postgresql/data
-    restart: unless-stopped
+      - huanu_postgres_${NODE_ENV}:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./logs/postgres:/var/log/postgresql
+    <<: *default-restart-policy
     networks:
-      - huanu-network
+      - huanu-network-${NODE_ENV}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-huanu}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
 
-  # 监控服务
+  # ========== 监控服务 ==========
   prometheus:
     image: prom/prometheus:latest
-    container_name: huanu-prometheus
+    container_name: huanu-prometheus-${NODE_ENV}
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - huanu_prometheus:/prometheus
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+      - huanu_prometheus_${NODE_ENV}:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-    restart: unless-stopped
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    <<: *default-restart-policy
     networks:
-      - huanu-network
+      - huanu-network-${NODE_ENV}
+    profiles:
+      - monitoring
 
-  # Grafana可视化
+  # ========== Grafana可视化 ==========
   grafana:
     image: grafana/grafana:latest
-    container_name: huanu-grafana
+    container_name: huanu-grafana-${NODE_ENV}
     ports:
-      - "3000:3000"
+      - "${GRAFANA_HOST_PORT:-3000}:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
     volumes:
-      - huanu_grafana:/var/lib/grafana
-      - ./monitoring/grafana:/etc/grafana/provisioning
-    restart: unless-stopped
+      - huanu_grafana_${NODE_ENV}:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/plugins:/var/lib/grafana/plugins
+    <<: *default-restart-policy
     networks:
-      - huanu-network
+      - huanu-network-${NODE_ENV}
+    profiles:
+      - monitoring
 
+  # ========== Node Exporter ==========
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: huanu-node-exporter-${NODE_ENV}
+    ports:
+      - "${NODE_EXPORTER_HOST_PORT:-9100}:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    <<: *default-restart-policy
+    networks:
+      - huanu-network-${NODE_ENV}
+    profiles:
+      - monitoring
+
+  # ========== Jaeger分布式追踪 ==========
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: huanu-jaeger-${NODE_ENV}
+    ports:
+      - "${JAEGER_HOST_PORT:-16686}:16686"
+      - "${JAEGER_AGENT_PORT:-14268}:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    <<: *default-restart-policy
+    networks:
+      - huanu-network-${NODE_ENV}
+    profiles:
+      - monitoring
+
+  # ========== 日志聚合 ==========
+  loki:
+    image: grafana/loki:latest
+    container_name: huanu-loki-${NODE_ENV}
+    ports:
+      - "${LOKI_HOST_PORT:-3100}:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - huanu_loki_${NODE_ENV}:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    <<: *default-restart-policy
+    networks:
+      - huanu-network-${NODE_ENV}
+    profiles:
+      - monitoring
+
+  # ========== Traefik反向代理 ==========
+  traefik:
+    image: traefik:latest
+    container_name: huanu-traefik-${NODE_ENV}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./ssl:/etc/ssl:ro
+    <<: *default-restart-policy
+    networks:
+      - huanu-network-${NODE_ENV}
+    profiles:
+      - production
+
+# ========== 数据卷定义 ==========
 volumes:
-  huanu_data:
+  huanu_data_development:
     driver: local
-  huanu_input:
+  huanu_data_staging:
     driver: local
-  huanu_output:
+  huanu_data_production:
     driver: local
-  huanu_creative:
+  huanu_input_development:
     driver: local
-  huanu_thumbnails:
+  huanu_input_staging:
     driver: local
-  huanu_redis:
+  huanu_input_production:
     driver: local
-  huanu_postgres:
+  huanu_output_development:
     driver: local
-  huanu_prometheus:
+  huanu_output_staging:
     driver: local
-  huanu_grafana:
+  huanu_output_production:
+    driver: local
+  huanu_creative_development:
+    driver: local
+  huanu_creative_staging:
+    driver: local
+  huanu_creative_production:
+    driver: local
+  huanu_thumbnails_development:
+    driver: local
+  huanu_thumbnails_staging:
+    driver: local
+  huanu_thumbnails_production:
+    driver: local
+  huanu_redis_development:
+    driver: local
+  huanu_redis_staging:
+    driver: local
+  huanu_redis_production:
+    driver: local
+  huanu_postgres_development:
+    driver: local
+  huanu_postgres_staging:
+    driver: local
+  huanu_postgres_production:
+    driver: local
+  huanu_prometheus_development:
+    driver: local
+  huanu_prometheus_staging:
+    driver: local
+  huanu_prometheus_production:
+    driver: local
+  huanu_grafana_development:
+    driver: local
+  huanu_grafana_staging:
+    driver: local
+  huanu_grafana_production:
+    driver: local
+  huanu_loki_development:
+    driver: local
+  huanu_loki_staging:
+    driver: local
+  huanu_loki_production:
     driver: local
 
+# ========== 网络定义 ==========
 networks:
-  huanu-network:
+  huanu-network-development:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.21.0.0/16
+  huanu-network-staging:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+  huanu-network-production:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/16

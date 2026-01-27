@@ -1,0 +1,646 @@
+# HuanuCanvas Kubernetes 部署配置
+# 版本: v1.4.1
+# 支持: 多环境、多可用区、自动扩缩容
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: huanu-canvas
+  labels:
+    name: huanu-canvas
+    environment: production
+
+---
+# ConfigMap 配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: huanu-config
+  namespace: huanu-canvas
+  labels:
+    app: huanu-canvas
+    version: v1.4.1
+data:
+  # 应用基础配置
+  APP_NAME: "PenguinMagic"
+  APP_VERSION: "1.4.1"
+  NODE_ENV: "production"
+  
+  # 服务端口配置
+  FRONTEND_PORT: "80"
+  BACKEND_PORT: "8765"
+  API_BASE_URL: "/api"
+  STATIC_FILES_PATH: "/files"
+  
+  # AI服务配置
+  AI_MODEL_VERSION: "gemini-1.5-pro"
+  
+  # 前端构建配置
+  BUILD_OUTPUT_DIR: "dist"
+  ASSETS_PATH: "assets"
+  
+  # 性能配置
+  MAX_MEMORY_USAGE: "1Gi"
+  MAX_CPU_USAGE: "500m"
+  MAX_CONCURRENT_REQUESTS: "10"
+  
+  # 日志配置
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  
+  # 安全配置
+  HSTS_ENABLED: "true"
+  SECURITY_HEADERS_ENABLED: "true"
+  CONTENT_SECURITY_POLICY: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+
+---
+# Secret 配置
+apiVersion: v1
+kind: Secret
+metadata:
+  name: huanu-secrets
+  namespace: huanu-canvas
+  labels:
+    app: huanu-canvas
+type: Opaque
+stringData:
+  # API密钥 (通过external-secrets或手动注入)
+  GEMINI_API_KEY: ""
+  
+  # 安全密钥
+  JWT_SECRET: ""
+  SESSION_SECRET: ""
+  
+  # 数据库配置
+  DATABASE_URL: ""
+  POSTGRES_PASSWORD: ""
+  
+  # Redis配置
+  REDIS_PASSWORD: ""
+  
+  # SSL证书配置
+  SSL_CERT_PATH: "/etc/ssl/certs/tls.crt"
+  SSL_KEY_PATH: "/etc/ssl/private/tls.key"
+  
+  # 外部服务
+  SENTRY_DSN: ""
+  SMTP_PASSWORD: ""
+
+---
+# HPA 配置
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: huanu-frontend-hpa
+  namespace: huanu-canvas
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: huanu-frontend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: huanu-backend-hpa
+  namespace: huanu-canvas
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: huanu-backend
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+
+---
+# 前端 Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: huanu-frontend
+  namespace: huanu-canvas
+  labels:
+    app: huanu-canvas
+    component: frontend
+    version: v1.4.1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: huanu-canvas
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: huanu-canvas
+        component: frontend
+        version: v1.4.1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9113"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: huanu-canvas
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        fsGroup: 101
+      containers:
+      - name: frontend
+        image: huanu-canvas-frontend:v1.4.1
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        - name: https
+          containerPort: 443
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: huanu-config
+        - secretRef:
+            name: huanu-secrets
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+          readOnly: true
+        - name: ssl-certs
+          mountPath: /etc/nginx/ssl
+          readOnly: true
+        - name: app-data
+          mountPath: /app/data
+        - name: app-logs
+          mountPath: /app/logs
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+      - name: ssl-certs
+        secret:
+          secretName: huanu-tls
+      - name: app-data
+        persistentVolumeClaim:
+          claimName: huanu-data-pvc
+      - name: app-logs
+        emptyDir: {}
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+
+---
+# 后端 Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: huanu-backend
+  namespace: huanu-canvas
+  labels:
+    app: huanu-canvas
+    component: backend
+    version: v1.4.1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: huanu-canvas
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: huanu-canvas
+        component: backend
+        version: v1.4.1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8765"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: huanu-canvas
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+      - name: backend
+        image: huanu-canvas-backend:v1.4.1
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8765
+          protocol: TCP
+        - name: metrics
+          containerPort: 8766
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: huanu-config
+        - secretRef:
+            name: huanu-secrets
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8765
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8765
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8765
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
+        - name: app-data
+          mountPath: /app/data
+        - name: app-logs
+          mountPath: /app/logs
+        - name: temp-storage
+          mountPath: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: app-data
+        persistentVolumeClaim:
+          claimName: huanu-data-pvc
+      - name: app-logs
+        emptyDir: {}
+      - name: temp-storage
+        emptyDir: {}
+      nodeSelector:
+        kubernetes.io/arch: amd64
+
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: huanu-canvas
+  namespace: huanu-canvas
+  labels:
+    app: huanu-canvas
+
+---
+# Service 配置
+apiVersion: v1
+kind: Service
+metadata:
+  name: huanu-frontend-service
+  namespace: huanu-canvas
+  labels:
+    app: huanu-canvas
+    component: frontend
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: LoadBalancer
+  selector:
+    app: huanu-canvas
+    component: frontend
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 443
+    protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: huanu-backend-service
+  namespace: huanu-canvas
+  labels:
+    app: huanu-canvas
+    component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: huanu-canvas
+    component: backend
+  ports:
+  - name: http
+    port: 8765
+    targetPort: 8765
+    protocol: TCP
+  - name: metrics
+    port: 8766
+    targetPort: 8766
+    protocol: TCP
+
+---
+# Ingress 配置
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: huanu-ingress
+  namespace: huanu-canvas
+  labels:
+    app: huanu-canvas
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-Frame-Options "DENY" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+spec:
+  tls:
+  - hosts:
+    - huanu.example.com
+    secretName: huanu-tls
+  rules:
+  - host: huanu.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: huanu-frontend-service
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: huanu-backend-service
+            port:
+              number: 8765
+
+---
+# PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: huanu-data-pvc
+  namespace: huanu-canvas
+  labels:
+    app: huanu-canvas
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd
+
+---
+# PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: huanu-frontend-pdb
+  namespace: huanu-canvas
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: huanu-canvas
+      component: frontend
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: huanu-backend-pdb
+  namespace: huanu-canvas
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: huanu-canvas
+      component: backend
+
+---
+# NetworkPolicy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: huanu-canvas-network-policy
+  namespace: huanu-canvas
+spec:
+  podSelector:
+    matchLabels:
+      app: huanu-canvas
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 8765
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 53   # DNS
+    - protocol: UDP
+      port: 53   # DNS
+
+---
+# ServiceMonitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: huanu-canvas-monitor
+  namespace: huanu-canvas
+  labels:
+    app: huanu-canvas
+spec:
+  selector:
+    matchLabels:
+      app: huanu-canvas
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+  namespaceSelector:
+    matchNames:
+    - huanu-canvas

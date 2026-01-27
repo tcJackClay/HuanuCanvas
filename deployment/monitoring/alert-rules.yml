@@ -1,0 +1,231 @@
+# Prometheus 告警规则
+# HuanuCanvas v1.4.1
+
+groups:
+  # 应用告警规则
+  - name: huanu-canvas.rules
+    rules:
+      # 服务可用性告警
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: huanu-canvas
+        annotations:
+          summary: "HuanuCanvas 服务不可用"
+          description: "{{ $labels.instance }} 服务已宕机超过 1 分钟"
+          runbook_url: "https://docs.huanu.com/runbooks/service-down"
+
+      # 响应时间告警
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: huanu-canvas
+        annotations:
+          summary: "HuanuCanvas 响应时间过高"
+          description: "95% 响应时间超过 2 秒，当前值: {{ $value }}s"
+
+      # 错误率告警
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: huanu-canvas
+        annotations:
+          summary: "HuanuCanvas 错误率过高"
+          description: "5xx 错误率超过 5%，当前值: {{ $value | humanizePercentage }}"
+
+      # 内存使用率告警
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes / process_virtual_memory_max_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: huanu-canvas
+        annotations:
+          summary: "HuanuCanvas 内存使用率过高"
+          description: "内存使用率超过 90%，当前值: {{ $value | humanizePercentage }}"
+
+      # CPU 使用率告警
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: huanu-canvas
+        annotations:
+          summary: "HuanuCanvas CPU 使用率过高"
+          description: "CPU 使用率超过 80%，当前值: {{ $value }}%"
+
+  # 数据库告警规则
+  - name: database.rules
+    rules:
+      # PostgreSQL 连接数告警
+      - alert: PostgreSQLTooManyConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL 连接数过高"
+          description: "连接数使用率超过 80%，当前值: {{ $value | humanizePercentage }}"
+
+      # Redis 连接数告警
+      - alert: RedisTooManyConnections
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis 连接数过高"
+          description: "Redis 连接数超过 100，当前值: {{ $value }}"
+
+      # 数据库延迟告警
+      - alert: DatabaseLatencyHigh
+        expr: rate(database_query_duration_seconds_sum[5m]) / rate(database_query_duration_seconds_count[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "数据库查询延迟过高"
+          description: "平均查询延迟超过 1 秒，当前值: {{ $value }}s"
+
+  # 基础设施告警规则
+  - name: infrastructure.rules
+    rules:
+      # 磁盘空间告警
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "磁盘空间不足"
+          description: "挂载点 {{ $labels.mountpoint }} 可用空间低于 10%，当前值: {{ $value | humanizePercentage }}"
+
+      # 磁盘 IO 告警
+      - alert: DiskIODeadlock
+        expr: rate(node_io_io_time_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "磁盘 IO 负载过高"
+          description: "设备 {{ $labels.device }} IO 时间比例超过 80%，当前值: {{ $value }}"
+
+      # 网络连接数告警
+      - alert: NetworkConnectionsHigh
+        expr: node_network_receive_bytes_total + node_network_transmit_bytes_total > 100000000
+        for: 5m
+        labels:
+          severity: info
+          service: infrastructure
+        annotations:
+          summary: "网络流量较高"
+          description: "网络流量超过 100MB/s，当前值: {{ $value }}"
+
+  # 业务告警规则
+  - name: business.rules
+    rules:
+      # AI API 调用失败率
+      - alert: AIAPIFailureRateHigh
+        expr: rate(ai_api_requests_failed_total[5m]) / rate(ai_api_requests_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-service
+        annotations:
+          summary: "AI API 调用失败率过高"
+          description: "AI API 调用失败率超过 10%，当前值: {{ $value | humanizePercentage }}"
+
+      # 用户会话数异常
+      - alert: UserSessionsAnomaly
+        expr: abs(user_active_sessions - avg_over_time(user_active_sessions[1h])) > 100
+        for: 10m
+        labels:
+          severity: info
+          service: business
+        annotations:
+          summary: "用户会话数异常"
+          description: "活跃会话数偏离平均值超过 100，当前值: {{ $value }}"
+
+      # 文件上传失败率
+      - alert: FileUploadFailureRate
+        expr: rate(file_uploads_failed_total[5m]) / rate(file_uploads_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: file-service
+        annotations:
+          summary: "文件上传失败率过高"
+          description: "文件上传失败率超过 5%，当前值: {{ $value | humanizePercentage }}"
+
+  # 容器告警规则
+  - name: container.rules
+    rules:
+      # 容器重启告警
+      - alert: ContainerRestarted
+        expr: increase(kube_pod_container_status_restarts_total[1h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: "容器频繁重启"
+          description: "容器 {{ $labels.container }} 在 1 小时内重启超过 3 次"
+
+      # 容器 CPU 节流
+      - alert: ContainerCPUThrottling
+        expr: rate(container_cpu_cfs_throttled_seconds_total[5m]) / rate(container_cpu_cfs_seconds_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: "容器 CPU 被限制"
+          description: "容器 {{ $labels.container }} CPU 使用被限制超过 10%"
+
+      # Pod 处于非就绪状态
+      - alert: PodNotReady
+        expr: kube_pod_status_ready{condition="false"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: "Pod 非就绪状态"
+          description: "Pod {{ $labels.pod }} 处于非就绪状态超过 5 分钟"
+
+  # 自定义告警规则
+  - name: custom.rules
+    rules:
+      # SSL 证书过期告警
+      - alert: SSLCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 30
+        for: 1h
+        labels:
+          severity: warning
+          service: ssl
+        annotations:
+          summary: "SSL 证书即将过期"
+          description: "SSL 证书将在 30 天内过期"
+
+      # 健康检查失败
+      - alert: HealthCheckFailed
+        expr: probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: health
+        annotations:
+          summary: "健康检查失败"
+          description: "端点 {{ $labels.instance }} 健康检查失败"

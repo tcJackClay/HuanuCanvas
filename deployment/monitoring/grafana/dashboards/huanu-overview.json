@@ -1,0 +1,147 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "HuanuCanvas 概览",
+    "tags": ["huanu-canvas", "overview"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "服务状态",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "up{job=~\"huanu-.*\"}",
+            "legendFormat": "{{job}} - {{instance}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "green", "value": 1}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "请求速率",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[5m])) by (job)",
+            "legendFormat": "{{job}}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "响应时间 (95th percentile)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (job, le))",
+            "legendFormat": "{{job}}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "错误率",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total[5m])) by (job)",
+            "legendFormat": "{{job}}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "内存使用率",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes / process_virtual_memory_max_bytes",
+            "legendFormat": "{{job}}"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "CPU 使用率",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total[5m]) * 100",
+            "legendFormat": "{{job}}"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "AI API 调用统计",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "sum(rate(ai_api_requests_total[5m])) by (job)",
+            "legendFormat": "调用速率 - {{job}}"
+          },
+          {
+            "expr": "sum(rate(ai_api_requests_failed_total[5m])) by (job)",
+            "legendFormat": "失败速率 - {{job}}"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "数据库连接数",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "pg_stat_database_numbackends",
+            "legendFormat": "PostgreSQL"
+          },
+          {
+            "expr": "redis_connected_clients",
+            "legendFormat": "Redis"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "磁盘 I/O",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "targets": [
+          {
+            "expr": "rate(node_disk_read_bytes_total[5m])",
+            "legendFormat": "读取 - {{device}}"
+          },
+          {
+            "expr": "rate(node_disk_written_bytes_total[5m])",
+            "legendFormat": "写入 - {{device}}"
+          }
+        ]
+      }
+    ]
+  }
+}
