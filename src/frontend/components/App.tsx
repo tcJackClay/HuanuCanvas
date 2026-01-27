@@ -1,0 +1,2710 @@
+
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { ImageUploader } from './ImageUploader';
+import { normalizeImageUrl } from '../utils/image';
+import { GeneratedImageDisplay } from './GeneratedImageDisplay';
+import { editImageWithGemini, generateCreativePromptFromImage, initializeAiClient, processBPTemplate, setThirdPartyConfig, optimizePrompt } from '@/src/frontend/services/ai/geminiService';
+import CreativeExtractor, { extractCreatives } from '@/src/frontend/services/ai/creativeExtractor';
+import { ApiStatus, GeneratedContent, CreativeIdea, SmartPlusConfig, ThirdPartyApiConfig, GenerationHistory, DesktopItem, DesktopImageItem, DesktopFolderItem, CreativeCategoryType } from '../../shared/types';
+import { ImagePreviewModal } from '@/src/frontend/components/Modals/ImagePreviewModal';
+import { AddCreativeIdeaModal } from '@/src/frontend/components/Modals/AddCreativeIdeaModal';
+import { SettingsModal } from '@/src/frontend/components/Modals/SettingsModal';
+import { downloadImage } from '@/src/frontend/services/export/desktopExporter';
+import { ThemeProvider, useTheme, SnowfallEffect } from '@/src/frontend/contexts/ThemeContext';
+import { HistoryDock } from '@/src/frontend/components/Modals/HistoryDock';
+import PebblingCanvas from '@/src/frontend/components/PebblingCanvas/index';
+import { BatchExport } from '@/src/frontend/components/BatchExport';
+import * as creativeIdeasApi from '@/src/frontend/services/original-services/api/creativeIdeas';
+import * as historyApi from '@/src/frontend/services/original-services/api/history';
+import * as desktopApi from '@/src/frontend/services/original-services/api/desktop';
+interface LeftPanelProps {
+  files: File[];
+  activeFileIndex: number | null;
+  onFileSelection: (files: FileList | null) => void;
+  onFileRemove: (index: number) => void;
+  onFileSelect: (index: number) => void;
+  onTriggerUpload: () => void;
+  // 设置
+  onSettingsClick: () => void;
+  // 当前 API 模式状态
+  currentApiMode: 'local-thirdparty' | 'local-gemini';
+  // 参数与提示词相关 (从RightPanel移入)
+  prompt: string;
+  setPrompt: (value: string) => void;
+  activeSmartTemplate: CreativeIdea | null;
+  activeSmartPlusTemplate: CreativeIdea | null;
+  activeBPTemplate: CreativeIdea | null;
+  bpInputs: Record<string, string>;
+  setBpInput: (id: string, value: string) => void;
+  smartPlusOverrides: SmartPlusConfig;
+  setSmartPlusOverrides: (config: SmartPlusConfig) => void;
+  handleGenerateSmartPrompt: () => void;
+  canGenerateSmartPrompt: boolean;
+  smartPromptGenStatus: ApiStatus;
+  onCancelSmartPrompt: () => void;
+  aspectRatio: string;
+  setAspectRatio: (value: string) => void;
+  imageSize: string;
+  setImageSize: (value: string) => void;
+  isThirdPartyApiEnabled: boolean;
+  onClearTemplate: () => void;
+  backendStatus: 'connected' | 'disconnected' | 'checking'; // 后端连接状态
+}
+interface RightPanelProps {
+  // 创意库相关
+  creativeIdeas: CreativeIdea[];
+  handleUseCreativeIdea: (idea: CreativeIdea) => void;
+  setAddIdeaModalOpen: (isOpen: boolean) => void;
+  setView: (view: 'editor' | 'local-library' | 'canvas') => void;
+  onDeleteIdea: (id: number) => void;
+  onEditIdea: (idea: CreativeIdea) => void;
+  onToggleFavorite?: (id: number) => void; // 切换收藏状态
+  onClearRecentUsage?: (id: number) => void; // 清除使用记录（重置order）
+}
+
+// 实现RightPanel组件
+const RightPanel: React.FC<RightPanelProps> = ({
+  creativeIdeas,
+  handleUseCreativeIdea,
+  setAddIdeaModalOpen,
+  setView,
+  onDeleteIdea,
+  onEditIdea,
+  onToggleFavorite,
+  onClearRecentUsage
+}) => {
+  const { theme } = useTheme();
+  return (
+    <div 
+      className="w-[220px] flex-shrink-0 flex flex-col h-full liquid-panel border-l z-20"
+      style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgPrimary }}
+    >
+      <div className="liquid-panel-section flex items-center justify-between p-2 border-b" style={{ borderColor: theme.colors.border }}>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded bg-blue-500/15 flex items-center justify-center">
+            <Star className="w-3 h-3 text-blue-400 fill-current" />
+          </div>
+          <h2 className="text-[12px] font-semibold" style={{ color: theme.colors.textPrimary }}>收藏创意</h2>
+        </div>
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={() => setAddIdeaModalOpen(true)}
+            className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:scale-105"
+            style={{ background: theme.colors.bgSecondary, color: theme.colors.textPrimary }}
+            title="新建创意"
+          >
+            <PlusCircleIcon className="w-3 h-3" />
+          </button>
+          <button 
+            onClick={() => setView('local-library')}
+            className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:scale-105"
+            style={{ background: theme.colors.bgSecondary, color: theme.colors.textPrimary }}
+            title="全部创意库"
+          >
+            <Grid3x3 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-2">
+        {/* 显示收藏的创意 */}
+        {creativeIdeas.filter(idea => idea.isFavorite).length > 0 ? (
+          <div className="space-y-1">
+            {creativeIdeas
+              .filter(idea => idea.isFavorite)
+              .map(idea => (
+                <div 
+                  key={idea.id}
+                  className="p-2 rounded-lg hover:bg-opacity-80 transition-all cursor-pointer"
+                  style={{ background: theme.colors.bgSecondary }}
+                  onClick={() => handleUseCreativeIdea(idea)}
+                >
+                  <div className="flex items-center gap-2">
+                    <img 
+                      src={normalizeImageUrl(idea.imageUrl)} 
+                      alt={idea.title} 
+                      className="w-10 h-10 rounded object-cover"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium truncate" style={{ color: theme.colors.textPrimary }}>
+                        {idea.title}
+                      </div>
+                      {idea.cost && idea.cost > 0 && (
+                        <div className="text-[10px]" style={{ color: theme.colors.textMuted }}>
+                          🪨 {idea.cost}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center text-center py-8">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-3">
+              <Star className="w-6 h-6 text-blue-400 fill-current" />
+            </div>
+            <p className="text-[11px] font-medium" style={{ color: theme.colors.textPrimary }}>还没有收藏</p>
+            <p className="text-[10px] mt-1" style={{ color: theme.colors.textMuted }}>在创意库中点击星标收藏</p>
+            <button 
+              onClick={() => setView('local-library')}
+              className="mt-4 px-4 py-2 text-xs flex items-center gap-1.5 rounded-lg transition-all"
+              style={{ 
+                background: theme.colors.bgSecondary, 
+                border: `1px solid ${theme.colors.border}`,
+                color: theme.colors.textPrimary
+              }}
+            >
+              <LibraryIcon className="w-3.5 h-3.5" />
+              浏览创意库
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+interface CanvasProps {
+  view: 'editor' | 'local-library' | 'canvas';
+  setView: (view: 'editor' | 'local-library' | 'canvas') => void;
+  files: File[];
+  onUploadClick: () => void;
+  creativeIdeas: CreativeIdea[];
+  localCreativeIdeas: CreativeIdea[];
+  onBack: () => void;
+  onAdd: () => void;
+  onDelete: (id: number) => void;
+  onDeleteMultiple?: (ids: number[]) => void; // 批量删除
+  onEdit: (idea: CreativeIdea) => void;
+  onUse: (idea: CreativeIdea) => void;
+  status: ApiStatus;
+  error: string | null;
+  content: GeneratedContent | null;
+  onPreviewClick: (url: string) => void;
+    onExportIdeas: () => void;
+  onImportIdeas: () => void;
+  isImporting?: boolean; // 导入状态
+  onImportById?: (idRange: string) => void; // 按ID导入
+  isImportingById?: boolean; // 按ID导入状态
+  onReorderIdeas: (ideas: CreativeIdea[]) => void;
+  onToggleFavorite?: (id: number) => void;
+  onUpdateCategory?: (id: number, category: CreativeCategoryType) => Promise<void>; // 更新分类
+  onEditAgain?: () => void; // 再次编辑
+  onRegenerate?: () => void; // 重新生成
+  onDismissResult?: () => void; // 关闭结果浮层
+  // 故事系统相关
+  prompt?: string;
+  imageSize?: string;
+  // 历史记录相关
+  history: GenerationHistory[];
+  onHistorySelect: (item: GenerationHistory) => void;
+  onHistoryDelete: (id: number) => void;
+  onHistoryClear: () => void;
+  // 框面模式相关
+  desktopItems: DesktopItem[];
+  onDesktopItemsChange: (items: DesktopItem[]) => void;
+  onDesktopImageDoubleClick: (item: DesktopImageItem) => void;
+  desktopSelectedIds: string[];
+  onDesktopSelectionChange: (ids: string[]) => void;
+  openFolderId: string | null;
+  onFolderOpen: (id: string) => void;
+  onFolderClose: () => void;
+  openStackId: string | null; // 叠放打开状态
+  onStackOpen: (id: string) => void;
+  onStackClose: () => void;
+  onRenameItem: (id: string, newName: string) => void;
+  // 图片操作回调
+  onDesktopImagePreview?: (item: DesktopImageItem) => void;
+  onDesktopImageEditAgain?: (item: DesktopImageItem) => void;
+  onDesktopImageRegenerate?: (item: DesktopImageItem) => void;
+  // 拖放文件回调
+  onFileDrop?: (files: FileList) => void;
+  // 从图片创建创意库
+  onCreateCreativeIdea?: (imageUrl: string, prompt?: string, aspectRatio?: string, resolution?: string) => void;
+  // 最小化结果状态
+  isResultMinimized: boolean;
+  setIsResultMinimized: (value: boolean) => void;
+  // 画布图片生成回调
+  onCanvasImageGenerated?: (imageUrl: string, prompt: string, canvasId?: string, canvasName?: string) => void;
+  // 画布创建回调
+  onCanvasCreated?: (canvasId: string, canvasName: string) => void;
+  // 添加图片到画布
+  pendingCanvasImage?: { imageUrl: string; imageName?: string } | null;
+  onClearPendingCanvasImage?: () => void;
+  onAddToCanvas?: (imageUrl: string, imageName?: string) => void;
+}
+// IndexedDB 相关操作已迁移到 services/db/ 目录
+// - services/db/creativeIdeasDb.ts: 创意库本地存储
+// - services/db/historyDb.ts: 历史记录本地存储
+const LeftPanel: React.FC<LeftPanelProps> = ({
+  files,
+  activeFileIndex,
+  onFileSelection,
+  onFileRemove,
+  onFileSelect,
+  onTriggerUpload,
+  onSettingsClick,
+  currentApiMode,
+  // 参数与提示词
+  prompt,
+  setPrompt,
+  activeSmartTemplate,
+  activeSmartPlusTemplate,
+  activeBPTemplate,
+  bpInputs,
+  setBpInput,
+  smartPlusOverrides,
+  setSmartPlusOverrides,
+  handleGenerateSmartPrompt,
+  canGenerateSmartPrompt,
+  smartPromptGenStatus,
+  onCancelSmartPrompt,
+  aspectRatio,
+  setAspectRatio,
+  imageSize,
+  setImageSize,
+  isThirdPartyApiEnabled,
+  onClearTemplate,
+  backendStatus,
+}) => {
+  const { theme, themeName, setTheme } = useTheme();
+  // 提示词放大弹窗状态
+  const [isPromptExpanded, setIsPromptExpanded] = useState(false);
+  const expandedPromptRef = useRef<HTMLTextAreaElement>(null);
+  // 参数配置折叠状态
+  const [isParamsExpanded, setIsParamsExpanded] = useState(true);
+  // 帮助文档弹窗状态
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  // 处理ESC关闭弹窗
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isPromptExpanded) {
+        setIsPromptExpanded(false);
+      }
+    };
+    if (isPromptExpanded) {
+      document.addEventListener('keydown', handleKeyDown);
+      // 聚焦到放大的输入框
+      setTimeout(() => expandedPromptRef.current?.focus(), 100);
+    }
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isPromptExpanded]);
+  // 明暗切换
+  const toggleDarkMode = () => {
+    setTheme(themeName === 'light' ? 'dark' : 'light');
+  };
+  const isDark = themeName !== 'light';
+  // 根据模式获取显示信息 - 本地版本
+  const getModeDisplay = () => {
+    switch (currentApiMode) {
+      case 'local-thirdparty':
+        return {
+          icon: <PlugIcon className="w-3 h-3" />,
+          text: '贞贞API',
+          bgClass: 'modern-badge warning',
+        };
+      case 'local-gemini':
+        return {
+          icon: <DiamondIcon className="w-3 h-3" />,
+          text: 'Gemini本地',
+          bgClass: 'modern-badge success',
+        };
+    }
+  };
+  const modeDisplay = getModeDisplay();
+  const hasActiveTemplate = activeSmartTemplate || activeSmartPlusTemplate || activeBPTemplate;
+  const activeTemplateName = activeBPTemplate?.title || activeSmartPlusTemplate?.title || activeSmartTemplate?.title;
+  const activeTemplate = activeBPTemplate || activeSmartPlusTemplate || activeSmartTemplate;
+  const canViewPrompt = activeTemplate?.allowViewPrompt !== false;
+  const canEditPrompt = activeTemplate?.allowEditPrompt !== false;
+
+  return (
+    <div 
+      className="w-[320px] flex-shrink-0 flex flex-col h-full liquid-panel border-r z-20"
+      style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgPrimary }}
+    >
+      {/* 顶部工具栏 */}
+      <div className="liquid-panel-section flex items-center justify-between p-2 border-b" style={{ borderColor: theme.colors.border }}>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded bg-blue-500/15 flex items-center justify-center">
+            <BoltIcon className="w-3 h-3 text-blue-400 fill-current" />
+          </div>
+          <h2 className="text-[12px] font-semibold" style={{ color: theme.colors.textPrimary }}>AI创作面板</h2>
+        </div>
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={onSettingsClick}
+            className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:scale-105"
+            style={{ background: theme.colors.bgSecondary, color: theme.colors.textPrimary }}
+            title="设置"
+          >
+            <SettingsIcon className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+
+      {/* 文件上传区域 */}
+      <div className="liquid-panel-section p-2 border-b" style={{ borderColor: theme.colors.border }}>
+        <ImageUploader 
+          files={files}
+          activeFileIndex={activeFileIndex}
+          onFileSelect={onFileSelect}
+          onFileRemove={onFileRemove}
+          onTriggerUpload={onTriggerUpload}
+          onFileSelection={onFileSelection}
+        />
+      </div>
+
+      {/* 当前 API 模式 */}
+      <div className="liquid-panel-section p-2 border-b" style={{ borderColor: theme.colors.border }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: theme.colors.bgSecondary }}>
+              {modeDisplay.icon}
+            </div>
+            <span className="text-xs" style={{ color: theme.colors.textPrimary }}>{modeDisplay.text}</span>
+          </div>
+          <div className={`px-2 py-0.5 rounded text-[10px] font-medium ${modeDisplay.bgClass}`}>
+            {modeDisplay.text}
+          </div>
+        </div>
+      </div>
+
+      {/* 提示词与参数区域 */}
+      <div className="flex-1 overflow-y-auto">
+        {/* 提示词输入 */}
+        <div className="liquid-panel-section p-2 border-b" style={{ borderColor: theme.colors.border }}>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-medium" style={{ color: theme.colors.textPrimary }}>提示词</h3>
+            {hasActiveTemplate && (
+              <button
+                onClick={onClearTemplate}
+                className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                清除模板
+              </button>
+            )}
+          </div>
+          
+          {hasActiveTemplate && (
+            <div className="mb-2">
+              <div className="flex items-center justify-between text-[10px] mb-1">
+                <span style={{ color: theme.colors.textMuted }}>当前模板</span>
+                <span className="font-medium" style={{ color: theme.colors.textPrimary }}>{activeTemplateName}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="relative">
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="请输入提示词..."
+              disabled={!canEditPrompt}
+              className="w-full px-3 py-2 text-sm rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+              style={{
+                backgroundColor: theme.colors.bgSecondary,
+                border: `1px solid ${theme.colors.border}`,
+                color: theme.colors.textPrimary,
+                minHeight: '80px',
+                maxHeight: '150px',
+                opacity: canEditPrompt ? 1 : 0.7,
+              }}
+            />
+            {!canViewPrompt && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg">
+                <span className="text-white text-xs">提示词已加密</span>
+              </div>
+            )}
+          </div>
+
+          {/* 智能提示词生成按钮 */}
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handleGenerateSmartPrompt}
+              disabled={!canGenerateSmartPrompt || smartPromptGenStatus === ApiStatus.Loading}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: theme.colors.primary,
+                color: 'white',
+              }}
+            >
+              {smartPromptGenStatus === ApiStatus.Loading ? (
+                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <LightbulbIcon className="w-3 h-3" />
+              )}
+              {smartPromptGenStatus === ApiStatus.Loading ? '生成中...' : '智能生成'}
+            </button>
+            {smartPromptGenStatus === ApiStatus.Loading && (
+              <button
+                onClick={onCancelSmartPrompt}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  backgroundColor: theme.colors.bgSecondary,
+                  color: theme.colors.textPrimary,
+                }}
+              >
+                取消
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 参数设置 */}
+        <div className="liquid-panel-section p-2 border-b" style={{ borderColor: theme.colors.border }}>
+          <div className="flex items-center justify-between mb-2" onClick={() => setIsParamsExpanded(!isParamsExpanded)}>
+            <h3 className="text-xs font-medium" style={{ color: theme.colors.textPrimary }}>参数设置</h3>
+            <ChevronDown 
+              className={`w-3 h-3 transition-transform ${isParamsExpanded ? 'rotate-180' : ''}`} 
+              style={{ color: theme.colors.textMuted }}
+            />
+          </div>
+
+          {isParamsExpanded && (
+            <div className="space-y-3">
+              {/* 宽高比 */}
+              <div>
+                <div className="text-[10px] mb-1" style={{ color: theme.colors.textMuted }}>宽高比</div>
+                <div className="grid grid-cols-4 gap-1">
+                  {['1:1', '4:3', '16:9', '9:16'].map((ratio) => (
+                    <button
+                      key={ratio}
+                      onClick={() => setAspectRatio(ratio)}
+                      className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${aspectRatio === ratio ? 'bg-blue-500/20 text-blue-400' : 'bg-transparent hover:bg-blue-500/10'}`}
+                    >
+                      {ratio}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 图片尺寸 */}
+              <div>
+                <div className="text-[10px] mb-1" style={{ color: theme.colors.textMuted }}>图片尺寸</div>
+                <div className="grid grid-cols-3 gap-1">
+                  {['2K', '4K', '8K'].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setImageSize(size)}
+                      className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${imageSize === size ? 'bg-blue-500/20 text-blue-400' : 'bg-transparent hover:bg-blue-500/10'}`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* BP模式参数 */}
+        {activeBPTemplate && (
+          <div className="liquid-panel-section p-2 border-b" style={{ borderColor: theme.colors.border }}>
+            <h3 className="text-xs font-medium mb-2" style={{ color: theme.colors.textPrimary }}>BP参数设置</h3>
+            <div className="space-y-2">
+              {activeBPTemplate.bpFields?.filter(f => f.type === 'input').map((field) => (
+                <div key={field.id}>
+                  <div className="text-[10px] mb-1" style={{ color: theme.colors.textMuted }}>{field.label}</div>
+                  <input
+                    type="text"
+                    value={bpInputs[field.id] || ''}
+                    onChange={(e) => setBpInput(field.id, e.target.value)}
+                    placeholder={field.placeholder || ''}
+                    className="w-full px-2 py-1 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    style={{
+                      backgroundColor: theme.colors.bgSecondary,
+                      border: `1px solid ${theme.colors.border}`,
+                      color: theme.colors.textPrimary,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+const SmartPlusDirector: React.FC<{
+    config: SmartPlusConfig;
+    onConfigChange: (config: SmartPlusConfig) => void;
+    templateConfig?: SmartPlusConfig;
+}> = ({ config, onConfigChange, templateConfig }) => {
+    const { themeName } = useTheme();
+    const isDark = themeName !== 'light';
+    const handleConfigChange = (
+        id: number,
+        field: 'enabled' | 'features',
+        value: boolean | string
+    ) => {
+        onConfigChange(
+            config.map(item =>
+                item.id === id ? { ...item, [field]: value } : item
+            )
+        );
+    };
+    const visibleComponents = config.filter(component => {
+        const templateComponent = templateConfig?.find(t => t.id === component.id);
+        return templateComponent?.enabled;
+    });
+    if (visibleComponents.length === 0) {
+        return null;
+    }
+};
+const BPModePanel: React.FC<{
+    template: CreativeIdea;
+    inputs: Record<string, string>;
+    onInputChange: (id: string, value: string) => void;
+}> = ({ template, inputs, onInputChange }) => {
+    const { themeName } = useTheme();
+    const isDark = themeName !== 'light';
+    // Only show manual inputs (type === 'input')
+    const manualFields = template.bpFields?.filter(f => f.type === 'input') || [];
+    const agentFields = template.bpFields?.filter(f => f.type === 'agent') || [];
+    if (manualFields.length === 0 && agentFields.length === 0) return null;
+}
+
+const Canvas: React.FC<CanvasProps> = ({
+  view,
+  setView,
+  files,
+  onUploadClick,
+  creativeIdeas,
+  localCreativeIdeas,
+  onBack,
+  onAdd,
+  onDelete,
+  onDeleteMultiple,
+  onEdit,
+  onUse,
+  status,
+  error,
+  content,
+  onPreviewClick,
+  onExportIdeas,
+  onImportIdeas,
+  onImportById,
+  onReorderIdeas,
+  onEditAgain,
+  onRegenerate,
+  onDismissResult,
+  prompt,
+  imageSize,
+  history,
+  onHistorySelect,
+  onHistoryDelete,
+  onHistoryClear,
+  desktopItems,
+  onDesktopItemsChange,
+  onDesktopImageDoubleClick,
+  desktopSelectedIds,
+  onDesktopSelectionChange,
+  openFolderId,
+  onFolderOpen,
+  onFolderClose,
+  openStackId,
+  onStackOpen,
+  onStackClose,
+  onRenameItem,
+  onDesktopImagePreview,
+  onDesktopImageEditAgain,
+  onDesktopImageRegenerate,
+    onFileDrop,
+  onCreateCreativeIdea,
+  isResultMinimized,
+  setIsResultMinimized,
+  onToggleFavorite,
+  onUpdateCategory,
+  isImporting,
+  isImportingById,
+  onCanvasImageGenerated,
+  onCanvasCreated,
+  pendingCanvasImage,
+  onClearPendingCanvasImage,
+  onAddToCanvas,
+}) => {
+  const { theme, themeName } = useTheme();
+  const isDark = themeName !== 'light';
+  return (
+   <main 
+     className="flex-1 flex flex-col min-w-0 relative overflow-hidden select-none" 
+     style={{ backgroundColor: theme.colors.bgPrimary }}
+     onDragStart={(e) => e.preventDefault()}
+   >
+      {/* 背景效果 - 适配明暗主题 */}
+      {isDark ? (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-950/10 via-gray-950 to-gray-950 pointer-events-none"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.15),transparent)] pointer-events-none"></div>
+        </>
+      ) : (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-white to-gray-50/20 pointer-events-none"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.08),transparent)] pointer-events-none"></div>
+        </>
+      )}
+      {/* 顶部切换标签 */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[60] liquid-tabs">
+        <button
+          onClick={() => setView('editor')}
+          className={`liquid-tab flex items-center gap-1 ${
+            view === 'editor' ? 'active' : ''
+          }`}
+        >
+          <Monitor className="w-3 h-3" />
+          桌面
+        </button>
+        <button
+          onClick={() => setView('local-library')}
+          className={`liquid-tab flex items-center gap-1 ${
+            view === 'local-library' ? 'active' : ''
+          }`}
+        >
+          <Folder className="w-3 h-3" />
+          本地创意
+          {localCreativeIdeas.length > 0 && (
+            <span className="px-1 py-0.5 text-[8px] rounded bg-white/20 font-medium">
+              {localCreativeIdeas.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setView('canvas')}
+          className={`liquid-tab flex items-center gap-1 ${
+            view === 'canvas' ? 'active' : ''
+          }`}
+        >
+          <Grid3x3 className="w-3 h-3" />
+          画布
+        </button>
+      </div>
+      {view === 'local-library' ? (
+        /* 创意库全屏显示 - 支持卡片拖拽排序 */
+        <div className="absolute inset-0 z-50 pt-12">
+          <CreativeLibrary
+            ideas={localCreativeIdeas}
+            onBack={onBack}
+            onAdd={onAdd}
+            onDelete={onDelete}
+            onDeleteMultiple={onDeleteMultiple}
+            onEdit={onEdit}
+            onUse={onUse}
+            onExport={onExportIdeas}
+            onImport={onImportIdeas}
+            onImportById={onImportById}
+            onReorder={onReorderIdeas}
+            onToggleFavorite={onToggleFavorite}
+            onUpdateCategory={onUpdateCategory}
+            isImporting={isImporting}
+            isImportingById={isImportingById}
+          />
+        </div>
+      ) : view === 'canvas' ? (
+        /* 画布全屏显示 - 覆盖整个区域，标签栏浮在上方 */
+        <div className="absolute inset-0 z-50 overflow-hidden">
+          <PebblingCanvas 
+            onImageGenerated={onCanvasImageGenerated} 
+            onCanvasCreated={onCanvasCreated}
+            creativeIdeas={creativeIdeas}
+            isActive={view === 'canvas'}
+            pendingImageToAdd={pendingCanvasImage}
+            onPendingImageAdded={onClearPendingCanvasImage}
+          />
+        </div>
+      ) : null}
+      {/* 桌面模式 - 非画布模式时显示 */}
+      {view !== 'canvas' && (
+      <div className="relative z-10 flex-1 overflow-hidden">
+          <Desktop
+            items={desktopItems}
+            onItemsChange={onDesktopItemsChange}
+            onImageDoubleClick={onDesktopImageDoubleClick}
+            onFolderDoubleClick={(folder) => onFolderOpen(folder.id)}
+            onStackDoubleClick={(stack) => onStackOpen(stack.id)}
+            openFolderId={openFolderId}
+            onFolderClose={onFolderClose}
+            openStackId={openStackId}
+            onStackClose={onStackClose}
+            selectedIds={desktopSelectedIds}
+            onSelectionChange={onDesktopSelectionChange}
+            onRenameItem={onRenameItem}
+            onImagePreview={onDesktopImagePreview}
+            onImageEditAgain={onDesktopImageEditAgain}
+            onImageRegenerate={onDesktopImageRegenerate}
+            history={history}
+            creativeIdeas={creativeIdeas}
+            onFileDrop={onFileDrop}
+            onCreateCreativeIdea={onCreateCreativeIdea}
+            isActive={view !== 'canvas'}
+            onAddToCanvas={onAddToCanvas}
+          />
+          {/* 生成结果浮层 - 毛玻璃效果 + 最小化联动 */}
+          {(status === ApiStatus.Loading || (status === ApiStatus.Success && content) || (status === ApiStatus.Error && error)) && (
+            <>
+              {/* 正常展开状态 - 居中显示 */}
+              {!isResultMinimized && (
+                <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-40 animate-scale-in">
+                  <div className="
+                    bg-gradient-to-br from-gray-900/90 via-gray-900/80 to-gray-800/90
+                    backdrop-blur-xl backdrop-saturate-150
+                    rounded-2xl
+                    border-2 border-blue-400/50
+                    shadow-[0_0_20px_rgba(59,130,246,0.3)]
+                    ring-1 ring-blue-500/20
+                    overflow-hidden p-5
+                  ">
+                    {/* 标题栏 */}
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+                      <div className="flex items-center gap-3">
+                        {status === ApiStatus.Loading ? (
+                          <div className="w-8 h-8 rounded-full bg-blue-500/30 flex items-center justify-center">
+                            <div className="w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        ) : status === ApiStatus.Success ? (
+                          <div className="w-8 h-8 rounded-full bg-blue-500/30 flex items-center justify-center">
+                            <Check className="w-4 h-4 text-blue-300" />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-500/30 flex items-center justify-center">
+                            <WarningIcon className="w-4 h-4 text-gray-300" />
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="text-base font-semibold text-white">
+                            {status === ApiStatus.Loading ? 'AI 正在创作中...' : status === ApiStatus.Success ? '作品已完成' : '生成遇到问题'}
+                          </h3>
+                          <p className="text-xs text-blue-300/70">
+                            {status === ApiStatus.Loading ? '请稍等，魔法正在发生' : status === ApiStatus.Success ? '点击图片查看大图' : '请稍后重试'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setIsResultMinimized(true)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-300 hover:text-white hover:bg-white/10 transition-all"
+                          title="收起到按钮旁"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                        {status !== ApiStatus.Loading && onDismissResult && (
+                          <button
+                            onClick={onDismissResult}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-300 hover:text-gray-300 hover:bg-gray-500/20 transition-all"
+                            title="关闭"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <GeneratedImageDisplay
+                      status={status}
+                      error={error}
+                      content={content}
+                      onPreviewClick={onPreviewClick}
+                      onEditAgain={onEditAgain}
+                      onRegenerate={onRegenerate}
+                      prompt={prompt}
+                      imageSize={imageSize}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+   </main>
+  );
+};
+export const defaultSmartPlusConfig: SmartPlusConfig = [
+    { id: 1, label: 'Product', enabled: true, features: '' },
+    { id: 2, label: 'Person', enabled: true, features: '' },
+    { id: 3, label: 'Scene', enabled: true, features: '' },
+];
+const App: React.FC = () => {
+  const [files, setFiles] = useState<File[]>([]);
+  const [activeFileIndex, setActiveFileIndex] = useState<number | null>(null);
+  const [prompt, setPrompt] = useState<string>('');
+  const [status, setStatus] = useState<ApiStatus>(ApiStatus.Idle);
+  const [error, setError] = useState<string | null>(null);
+  const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [smartPromptGenStatus, setSmartPromptGenStatus] = useState<ApiStatus>(ApiStatus.Idle);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  // 取消 BP/Smart 处理
+  const handleCancelSmartPrompt = useCallback(() => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setSmartPromptGenStatus(ApiStatus.Idle);
+    }
+  }, [abortController]);
+  const [apiKey, setApiKey] = useState<string>('');
+  // 创意库状态：本地存储
+  const [localCreativeIdeas, setLocalCreativeIdeas] = useState<CreativeIdea[]>([]);
+  // 本地版本直接使用本地创意库
+  const creativeIdeas = useMemo(() => {
+    return [...localCreativeIdeas].sort((a, b) => (b.order || 0) - (a.order || 0));
+  }, [localCreativeIdeas]);
+  const [view, setView] = useState<'editor' | 'local-library' | 'canvas'>('editor'); // 默认桌面模式
+  const [isAddIdeaModalOpen, setAddIdeaModalOpen] = useState(false);
+  const [editingIdea, setEditingIdea] = useState<CreativeIdea | null>(null);
+  const [presetImageForNewIdea, setPresetImageForNewIdea] = useState<string | null>(null); // 从桌面图片创建创意库时的预设图片
+  const [presetPromptForNewIdea, setPresetPromptForNewIdea] = useState<string | null>(null); // 预设提示词
+  const [presetAspectRatioForNewIdea, setPresetAspectRatioForNewIdea] = useState<string | null>(null); // 预设画面比例
+  const [presetResolutionForNewIdea, setPresetResolutionForNewIdea] = useState<string | null>(null); // 预设分辨率
+  const [activeSmartTemplate, setActiveSmartTemplate] = useState<CreativeIdea | null>(null);
+  const [activeSmartPlusTemplate, setActiveSmartPlusTemplate] = useState<CreativeIdea | null>(null);
+  const [smartPlusOverrides, setSmartPlusOverrides] = useState<SmartPlusConfig>(() => JSON.parse(JSON.stringify(defaultSmartPlusConfig)));
+  // BP Mode States
+  const [activeBPTemplate, setActiveBPTemplate] = useState<CreativeIdea | null>(null);
+  const [bpInputs, setBpInputs] = useState<Record<string, string>>({});
+  // 当前使用的创意库（用于获取扣费金额，不论类型）
+  const [activeCreativeIdea, setActiveCreativeIdea] = useState<CreativeIdea | null>(null);
+  // No global polish switch needed for BP anymore, as agents handle intelligence
+  // const [bpPolish, setBpPolish] = useState(false); 
+  // New State for Model Config
+  const [aspectRatio, setAspectRatio] = useState<string>('1:1');
+  const [imageSize, setImageSize] = useState<string>('2K');
+  const [batchCount, setBatchCount] = useState<number>(1); // 批量生成数量（1/2/4张）
+  const [autoSave, setAutoSave] = useState(false);
+  // 贞贞API配置状态
+  const [thirdPartyApiConfig, setThirdPartyApiConfig] = useState<ThirdPartyApiConfig>({
+    enabled: false,
+    baseUrl: '',
+    apiKey: '',
+    model: 'nano-banana-2'
+  });
+  // 历史记录状态
+  const [generationHistory, setGenerationHistory] = useState<GenerationHistory[]>([]);
+  // 设置弹窗状态
+  const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
+  // 桌面状态
+  const [desktopItems, setDesktopItems] = useState<DesktopItem[]>([]);
+  const [desktopSelectedIds, setDesktopSelectedIds] = useState<string[]>([]);
+  const [openFolderId, setOpenFolderId] = useState<string | null>(null);
+  const [openStackId, setOpenStackId] = useState<string | null>(null); // 叠放打开状态
+  // 待添加到画布的图片（用于桌面->画布联动）
+  const [pendingCanvasImage, setPendingCanvasImage] = useState<{ imageUrl: string; imageName?: string } | null>(null);
+  // 左侧面板显示/隐藏状态
+  const [showLeftPanel, setShowLeftPanel] = useState(true);
+  // 画布ID到桌面文件夹ID的映射（用于画布-桌面联动）
+  const [canvasToFolderMap, setCanvasToFolderMap] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('canvas_folder_map');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+    const [isResultMinimized, setIsResultMinimized] = useState(false); // 生成结果最小化状态
+  const [isLoading, setIsLoading] = useState(true); // 加载状态
+  const [isImporting, setIsImporting] = useState(false); // 导入状态
+  const [isImportingById, setIsImportingById] = useState(false); // 按ID导入状态
+  const [backendStatus, setBackendStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking'); // 后端连接状态
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const importIdeasInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('gemini_api_key');
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+      initializeAiClient(savedApiKey);
+    }
+    // 加载贞贞API配置
+    const savedThirdPartyConfig = localStorage.getItem('third_party_api_config');
+    if (savedThirdPartyConfig) {
+      try {
+        const config = JSON.parse(savedThirdPartyConfig) as ThirdPartyApiConfig;
+        // 确保所有必要字段都有默认值（兼容旧版本配置）
+        if (!config.baseUrl) {
+          config.baseUrl = 'https://ai.t8star.cn';
+        }
+        if (!config.model) {
+          config.model = 'nano-banana-2';
+        }
+        if (!config.chatModel) {
+          config.chatModel = 'gemini-2.5-pro';
+        }
+        setThirdPartyApiConfig(config);
+        setThirdPartyConfig(config);
+      } catch (e) {
+        console.error('Failed to parse third party API config:', e);
+      }
+    } else {
+      // 默认配置
+      const defaultConfig: ThirdPartyApiConfig = {
+        enabled: false,
+        baseUrl: 'https://ai.t8star.cn',
+        apiKey: '',
+        model: 'nano-banana-2',
+        chatModel: 'gemini-2.5-pro'
+      };
+      setThirdPartyApiConfig(defaultConfig);
+      setThirdPartyConfig(defaultConfig);
+    }
+    // 本地版本：直接从本地加载数据
+    loadDataFromLocal();
+    const savedAutoSave = localStorage.getItem('auto_save_enabled');
+    if (savedAutoSave) {
+        setAutoSave(JSON.parse(savedAutoSave));
+    }
+  }, []);
+  // 后端健康检查 - 定时检测连接状态
+  useEffect(() => {
+    const checkBackendHealth = async () => {
+      try {
+        const response = await fetch('/api/status', { 
+          method: 'GET',
+          signal: AbortSignal.timeout(5000) // 5秒超时
+        });
+        if (response.ok) {
+          setBackendStatus('connected');
+        } else {
+          setBackendStatus('disconnected');
+        }
+      } catch (e) {
+        setBackendStatus('disconnected');
+      }
+    };
+    // 立即检查一次
+    checkBackendHealth();
+    // 每10秒检查一次
+    const interval = setInterval(checkBackendHealth, 10000);
+    return () => clearInterval(interval);
+  }, []);
+  // 从 Node.js 后端加载数据（纯本地文件，不用浏览器缓存）
+  const loadDataFromLocal = async () => {
+    setIsLoading(true);
+    try {
+      const [ideasResult, historyResult, desktopResult] = await Promise.all([
+        creativeIdeasApi.getAllCreativeIdeas(),
+        historyApi.getAllHistory(),
+        desktopApi.getDesktopItems()
+      ]);
+      if (ideasResult.success && ideasResult.data) {
+        setLocalCreativeIdeas(ideasResult.data.sort((a, b) => (b.order || 0) - (a.order || 0)));
+      } else {
+        console.warn('加载创意库失败:', ideasResult.error);
+        setLocalCreativeIdeas([]);
+      }
+      let loadedHistory: GenerationHistory[] = [];
+      if (historyResult.success && historyResult.data) {
+        loadedHistory = historyResult.data.sort((a, b) => b.timestamp - a.timestamp);
+        setGenerationHistory(loadedHistory);
+      } else {
+        console.warn('加载历史记录失败:', historyResult.error);
+        setGenerationHistory([]);
+      }
+      // 加载桌面状态，并恢复图片URL，清除卡住的loading状态
+      if (desktopResult.success && desktopResult.data) {
+        const restoredItems = desktopResult.data.map(item => {
+          if (item.type === 'image') {
+            const imageItem = item as DesktopImageItem;
+            let restored = { ...imageItem };
+            // 清除卡住的loading状态（重启后不应该还在loading）
+            if (imageItem.isLoading) {
+              restored.isLoading = false;
+              // 如果没有图片URL，标记为加载失败
+              if (!imageItem.imageUrl) {
+                restored.loadingError = '加载中断，请重新生成';
+              }
+            }
+            // 如果 imageUrl 为空且有 historyId，从历史记录恢复
+            if ((!restored.imageUrl || restored.imageUrl === '') && restored.historyId) {
+              const historyEntry = loadedHistory.find(h => h.id === restored.historyId);
+              if (historyEntry) {
+                restored.imageUrl = historyEntry.imageUrl;
+                restored.loadingError = undefined; // 恢复成功，清除错误
+              }
+            }
+            return restored;
+          }
+          return item;
+        });
+        setDesktopItems(restoredItems);
+      } else {
+        console.warn('加载桌面状态失败:', desktopResult.error);
+        setDesktopItems([]);
+      }
+    } catch (e) {
+      console.error('Node.js后端未运行，请先启动后端服务', e);
+      setLocalCreativeIdeas([]);
+      setGenerationHistory([]);
+      setDesktopItems([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  // 切换收藏状态
+  const handleToggleFavorite = useCallback(async (id: number) => {
+    const targetIdea = localCreativeIdeas.find(idea => idea.id === id);
+    if (!targetIdea) return;
+    const updatedIdeas = localCreativeIdeas.map(idea => 
+      idea.id === id ? { ...idea, isFavorite: !idea.isFavorite } : idea
+    );
+    setLocalCreativeIdeas(updatedIdeas);
+    // 保存到Node.js后端
+    try {
+      await creativeIdeasApi.updateCreativeIdea(id, { isFavorite: !targetIdea.isFavorite });
+    } catch (e) {
+      console.error('保存收藏状态失败:', e);
+    }
+  }, [localCreativeIdeas]);
+  // 更新分类
+  const handleUpdateCategory = useCallback(async (id: number, category: CreativeCategoryType) => {
+    const updatedIdeas = localCreativeIdeas.map(idea => 
+      idea.id === id ? { ...idea, category } : idea
+    );
+    setLocalCreativeIdeas(updatedIdeas);
+    // 保存到Node.js后端
+    try {
+      await creativeIdeasApi.updateCreativeIdea(id, { category });
+    } catch (e) {
+      console.error('保存分类失败:', e);
+    }
+  }, [localCreativeIdeas]);
+  // 清除使用记录（重置order为0，从最近使用列表中移除）
+  const handleClearRecentUsage = useCallback(async (id: number) => {
+    const targetIdea = localCreativeIdeas.find(idea => idea.id === id);
+    if (!targetIdea) return;
+    const updatedIdeas = localCreativeIdeas.map(idea => 
+      idea.id === id ? { ...idea, order: 0 } : idea
+    );
+    setLocalCreativeIdeas(updatedIdeas);
+    // 保存到Node.js后端
+    try {
+      await creativeIdeasApi.updateCreativeIdea(id, { order: 0 });
+    } catch (e) {
+      console.error('清除使用记录失败:', e);
+    }
+  }, [localCreativeIdeas]);
+  const handleSetPrompt = (value: string) => {
+    setPrompt(value);
+  };
+  const handleFileSelection = useCallback(async (selectedFiles: FileList | null) => {
+    if (selectedFiles && selectedFiles.length > 0) {
+      const newFiles = Array.from(selectedFiles).filter(file => file.type.startsWith('image/'));
+      // 保存每个图片到 input 目录
+      for (const file of newFiles) {
+        try {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            const imageData = reader.result as string;
+            const result = await saveToInput(imageData, file.name);
+            if (result.success) {
+              console.log('[Input] 图片已保存:', result.data?.filename);
+            } else {
+              console.warn('[Input] 保存失败:', result.error);
+            }
+          };
+          reader.readAsDataURL(file);
+        } catch (e) {
+          console.warn('[Input] 保存图片到input目录失败:', e);
+        }
+      }
+      setFiles(prevFiles => {
+        const wasEmpty = prevFiles.length === 0;
+        const updatedFiles = [...prevFiles, ...newFiles];
+        if (wasEmpty && updatedFiles.length > 0) {
+          setTimeout(() => setActiveFileIndex(0), 0);
+        }
+        return updatedFiles;
+      });
+    }
+  }, []);
+  const handleFileRemove = (indexToRemove: number) => {
+    setFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
+    if (activeFileIndex === indexToRemove) {
+      setActiveFileIndex(files.length > 1 ? 0 : null);
+    } else if (activeFileIndex !== null && activeFileIndex > indexToRemove) {
+      setActiveFileIndex(activeFileIndex - 1);
+    }
+  };
+  const handleFileInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileSelection(event.target.files);
+    if (event.target) {
+        event.target.value = '';
+    }
+  }, [handleFileSelection]);
+  const handleApiKeySave = (key: string) => {
+    setApiKey(key);
+    localStorage.setItem('gemini_api_key', key);
+    initializeAiClient(key);
+    setError(null); 
+  };
+  // 处理添加图片到画布
+  const handleAddToCanvas = useCallback((imageUrl: string, imageName?: string) => {
+    // 设置待添加的图片
+    setPendingCanvasImage({ imageUrl, imageName });
+    // 切换到画布视图
+    setView('canvas');
+  }, []);
+  // 清除待添加的画布图片（由PebblingCanvas处理完成后调用）
+  const handleClearPendingCanvasImage = useCallback(() => {
+    setPendingCanvasImage(null);
+  }, []);
+  const handleAutoSaveToggle = (enabled: boolean) => {
+    setAutoSave(enabled);
+    localStorage.setItem('auto_save_enabled', JSON.stringify(enabled));
+  };
+  // 贞贞API配置变更处理
+  const handleThirdPartyConfigChange = (config: ThirdPartyApiConfig) => {
+    setThirdPartyApiConfig(config);
+    setThirdPartyConfig(config);
+    localStorage.setItem('third_party_api_config', JSON.stringify(config));
+  };
+  // 历史记录操作
+  const handleHistorySelect = async (item: GenerationHistory) => {
+    // 从本地路径恢复输入图片
+    let restoredFiles: File[] = [];
+    if (item.inputImagePaths && item.inputImagePaths.length > 0) {
+      try {
+        restoredFiles = await Promise.all(item.inputImagePaths.map(async (path) => {
+          const response = await fetch(path);
+          const blob = await response.blob();
+          const filename = path.split('/').pop() || 'restored-input.png';
+          return new File([blob], filename, { type: blob.type });
+        }));
+        setFiles(restoredFiles);
+        setActiveFileIndex(0);
+      } catch (e) {
+        console.warn('从本地路径恢复图片失败:', e);
+        setFiles([]);
+        setActiveFileIndex(null);
+      }
+    } else {
+      // 没有输入图片，清空文件列表
+      setFiles([]);
+      setActiveFileIndex(null);
+    }
+    // 恢复创意库设置（用于重新生成）
+    setActiveSmartTemplate(null);
+    setActiveSmartPlusTemplate(null);
+    setActiveBPTemplate(null);
+    setActiveCreativeIdea(null);
+    setBpInputs({});
+    setSmartPlusOverrides(JSON.parse(JSON.stringify(defaultSmartPlusConfig)));
+    if (item.creativeTemplateType && item.creativeTemplateType !== 'none' && item.creativeTemplateId) {
+      const template = creativeIdeas.find(idea => idea.id === item.creativeTemplateId);
+      if (template) {
+        // 设置当前使用的创意库（用于扣费）
+        setActiveCreativeIdea(template);
+        if (item.creativeTemplateType === 'bp') {
+          setActiveBPTemplate(template);
+          if (item.bpInputs) {
+            setBpInputs(item.bpInputs);
+          }
+        } else {
+          // 非BP模式 = 普通模式模板
+          setActiveSmartTemplate(template);
+        }
+      }
+    }
+    // 设置生成的内容，并保留原始图片引用用于“重新生成”
+    setGeneratedContent({ 
+      imageUrl: item.imageUrl, 
+      text: null,
+      originalFiles: restoredFiles 
+    });
+    setPrompt(item.prompt);
+    setStatus(ApiStatus.Success);
+    setView('editor'); // 切换到编辑器视图以显示图片
+  };
+  const handleHistoryDelete = async (id: number) => {
+    try {
+      await historyApi.deleteHistory(id);
+      setGenerationHistory(prev => prev.filter(h => h.id !== id));
+    } catch (e) {
+      console.error('删除历史记录失败:', e);
+    }
+  };
+  const handleHistoryClear = async () => {
+    if (!confirm('确定要清空所有历史记录吗？')) return;
+    try {
+      await historyApi.clearAllHistory();
+      setGenerationHistory([]);
+    } catch (e) {
+      console.error('清空历史记录失败:', e);
+    }
+  };
+  const saveToHistory = async (
+    imageUrl: string, 
+    promptText: string, 
+    isThirdParty: boolean, 
+    inputFiles?: File[], // 修改为数组支持多图
+    creativeInfo?: {
+      templateId?: number;
+      templateType: 'smart' | 'smartPlus' | 'bp' | 'none';
+      bpInputs?: Record<string, string>;
+      smartPlusOverrides?: SmartPlusConfig;
+    }
+  ): Promise<{ historyId?: number; localImageUrl: string } | undefined> => {
+    // 输入图片保存为本地文件，只存储路径（不再存base64）
+    let inputImagePaths: string[] | undefined;
+    if (inputFiles && inputFiles.length > 0) {
+      try {
+        // 并行保存所有输入图片到 input 目录
+        inputImagePaths = await Promise.all(inputFiles.map(async (file) => {
+          const data = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+          // 保存到input目录
+          const saveResult = await saveToInput(data, file.name);
+          if (saveResult.success && saveResult.data) {
+            return saveResult.data.url; // 返回本地路径
+          }
+          return ''; // 保存失败返回空
+        }));
+        // 过滤掉保存失败的
+        inputImagePaths = inputImagePaths.filter(p => p);
+      } catch (e) {
+        console.warn('保存输入图片失败:', e);
+      }
+    }
+    const historyId = Date.now();
+    // 先保存图片到本地output目录，获取本地URL
+    let localImageUrl = imageUrl;
+    if (imageUrl.startsWith('data:')) {
+      // base64 格式，直接保存
+      try {
+        const saveResult = await saveToOutput(imageUrl);
+        if (saveResult.success && saveResult.data) {
+          // 使用本地文件URL替代base64
+          localImageUrl = saveResult.data.url;
+        }
+      } catch (e) {
+        console.log('保存到output失败，使用base64:', e);
+      }
+    } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      // 远程 URL（贞贞 API 等返回），通过后端下载保存到本地防止过期（避免CORS问题）
+      try {
+        const downloadResult = await downloadRemoteToOutput(imageUrl);
+        if (downloadResult.success && downloadResult.data) {
+          localImageUrl = downloadResult.data.url;
+          console.log('远程URL图片已保存到本地:', localImageUrl);
+        } else {
+          console.warn('后端下载远程图片失败:', downloadResult.error);
+        }
+      } catch (e) {
+        console.log('下载远程图片失败，使用原始URL:', e);
+      }
+    }
+    const historyItem: GenerationHistory = {
+      id: historyId,
+      imageUrl: localImageUrl, // 使用本地URL
+      prompt: promptText,
+      timestamp: Date.now(),
+      model: isThirdParty ? (thirdPartyApiConfig.model || 'nano-banana-2') : 'Gemini 3 Pro',
+      isThirdParty,
+      // 输入图片使用本地路径，不存base64
+      inputImagePaths,
+      // 创意库信息
+      creativeTemplateId: creativeInfo?.templateId,
+      creativeTemplateType: creativeInfo?.templateType || 'none',
+      bpInputs: creativeInfo?.bpInputs,
+      smartPlusOverrides: creativeInfo?.smartPlusOverrides
+    };
+    try {
+      const { id, ...historyWithoutId } = historyItem;
+      const result = await historyApi.createHistory(historyWithoutId as any);
+      if (result.success && result.data) {
+        setGenerationHistory(prev => [result.data!, ...prev].slice(0, 50));
+        return { historyId: result.data.id, localImageUrl };
+      }
+      console.error('保存历史记录失败:', result.error);
+    } catch (e) {
+      console.error('保存历史记录失败:', e);
+    }
+    // 即使保存历史记录失败，也返回本地URL供桌面使用
+    return { historyId: undefined, localImageUrl };
+  };
+  // 图片下载逻辑已迁移到 services/export/desktopExporter.ts
+  // 使用 downloadImage from '@/src/frontend/components/Modals/services/export'
+  // 导出创意库：将本地图片转换为base64确保跨设备导入时图片不丢失
+  const handleExportIdeas = async () => {
+    if (creativeIdeas.length === 0) {
+        alert("库是空的 / Library is empty.");
+        return;
+    }
+    // 转换本地图片为base64
+    const convertImageToBase64 = async (url: string): Promise<string> => {
+      // 如果已经是base64或外部URL，直接返回
+      if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+      }
+      // 本地路径，fetch并转换为base64
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) {
+        console.warn('图片转换失败:', url, e);
+        return url; // 转换失败时保留原始路径
+      }
+    };
+    try {
+      // 显示导出中提示
+      const ideasWithBase64 = await Promise.all(
+        creativeIdeas.map(async (idea) => ({
+          ...idea,
+          imageUrl: await convertImageToBase64(idea.imageUrl)
+        }))
+      );
+      const dataStr = JSON.stringify(ideasWithBase64, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'creative_library.json';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('导出失败:', e);
+      alert('导出失败');
+    }
+  };
+    const handleImportIdeas = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      // 防止重复导入
+      if (isImporting) {
+        alert('正在导入中，请稍候...');
+        return;
+      }
+      setIsImporting(true);
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+          try {
+              const content = e.target?.result;
+              if (typeof content !== 'string') throw new Error("File content is not a string.");
+              let parsedData = JSON.parse(content);
+              // 支持单个对象和数组两种格式
+              const ideas = Array.isArray(parsedData) ? parsedData : [parsedData];
+                            if (ideas.length > 0 && ideas.every(idea => 'title' in idea && 'prompt' in idea && 'imageUrl' in idea)) {
+                  try {
+                    const ideasWithoutId = ideas.map(({ id, ...rest }) => rest);
+                    const result = await creativeIdeasApi.importCreativeIdeas(ideasWithoutId as any) as any;
+                    if (result.success) {
+                      await loadDataFromLocal();
+                      // 显示后端返回的导入结果（包含跳过重复信息）
+                      const msg = result.message || `已导入 ${result.imported || ideas.length} 个创意`;
+                      alert(msg);
+                    } else {
+                      throw new Error(result.error || '导入失败');
+                    }
+                  } catch (apiError) {
+                    console.error('导入失败:', apiError);
+                    alert('导入失败');
+                  }
+              } else {
+                  throw new Error("文件格式无效");
+              }
+          } catch (error) {
+              console.error("Failed to import creative ideas:", error);
+              alert("导入失败");
+          } finally {
+              setIsImporting(false);
+              if (event.target) {
+                  event.target.value = '';
+              }
+          }
+      };
+      reader.onerror = () => {
+        setIsImporting(false);
+        alert('文件读取失败');
+      };
+      reader.readAsText(file);
+  };
+  const handleImportCreativeById = async (idRange: string) => {
+    // 防止重复导入
+    if (isImportingById) {
+      alert('正在导入中，请稍候...');
+      return;
+    }
+    setIsImportingById(true);
+    try {
+      console.log('开始智能导入，ID范围:', idRange);
+      // 调用后端智能导入API
+      const response = await fetch('/api/creative-ideas/smart-import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: 'https://opennana.com/awesome-prompt-gallery/data/prompts.json',
+          idRange: idRange
+        })
+      });
+      const result = await response.json();
+      console.log('智能导入结果:', result);
+      if (result.success) {
+        await loadDataFromLocal();
+        if (result.imported > 0) {
+          alert(result.message || `已成功导入 ${result.imported} 个创意`);
+        } else {
+          alert('未找到符合条件的创意，请检查编号范围是否正确 (例如: 988-985)');
+        }
+      } else {
+        throw new Error(result.error || '导入失败');
+      }
+    } catch (error) {
+      console.error('智能导入失败:', error);
+      let errorMessage = '未知错误';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      alert(`导入失败: ${errorMessage}`);
+    } finally {
+      setIsImportingById(false);
+    }
+  };
+  const handleSaveCreativeIdea = async (idea: Partial<CreativeIdea>) => {
+    console.log('[handleSaveCreativeIdea] 接收到数据:', {
+      id: idea.id,
+      suggestedAspectRatio: idea.suggestedAspectRatio,
+      suggestedResolution: idea.suggestedResolution
+    });
+    try {
+      if (idea.id) {
+        // 更新现有创意
+        const result = await creativeIdeasApi.updateCreativeIdea(idea.id, idea);
+        if (!result.success) {
+          throw new Error(result.error || '更新失败');
+        }
+      } else {
+        // 创建新创意
+        const newOrder = creativeIdeas.length > 0 ? Math.max(...creativeIdeas.map(i => i.order || 0)) + 1 : 1;
+        const { id, ...ideaWithoutId } = idea as any;
+        const result = await creativeIdeasApi.createCreativeIdea({ ...ideaWithoutId, order: newOrder });
+        if (!result.success) {
+          throw new Error(result.error || '创建失败');
+        }
+      }
+      // 重新加载数据
+      await loadDataFromLocal();
+      setAddIdeaModalOpen(false);
+      setEditingIdea(null);
+    } catch (e) {
+      console.error('保存创意失败:', e);
+      alert(`保存失败: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    }
+  };
+  const handleDeleteCreativeIdea = async (id: number) => {
+    try {
+      const result = await creativeIdeasApi.deleteCreativeIdea(id);
+      if (!result.success) {
+        throw new Error(result.error || '删除失败');
+      }
+      await loadDataFromLocal();
+    } catch (e) {
+      console.error('删除创意失败:', e);
+      alert(`删除失败: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    }
+  };
+  // 批量删除创意
+  const handleDeleteMultipleCreativeIdeas = async (ids: number[]) => {
+    try {
+      // 逐个删除
+      for (const id of ids) {
+        const result = await creativeIdeasApi.deleteCreativeIdea(id);
+        if (!result.success) {
+          console.error(`删除ID ${id} 失败:`, result.error);
+        }
+      }
+      await loadDataFromLocal();
+    } catch (e) {
+      console.error('批量删除创意失败:', e);
+      alert(`删除失败: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    }
+  };
+  const handleStartEditIdea = (idea: CreativeIdea) => {
+    setEditingIdea(idea);
+    setAddIdeaModalOpen(true);
+  };
+  const handleAddNewIdea = () => {
+    setEditingIdea(null);
+    setPresetImageForNewIdea(null);
+    setPresetPromptForNewIdea(null);
+    setPresetAspectRatioForNewIdea(null);
+    setPresetResolutionForNewIdea(null);
+    setAddIdeaModalOpen(true);
+  };
+  // 从桌面图片创建创意库
+  const handleCreateCreativeIdeaFromImage = (imageUrl: string, prompt?: string, aspectRatio?: string, resolution?: string) => {
+    setEditingIdea(null);
+    setPresetImageForNewIdea(imageUrl);
+    setPresetPromptForNewIdea(prompt || null);
+    setPresetAspectRatioForNewIdea(aspectRatio || null);
+    setPresetResolutionForNewIdea(resolution || null);
+    setAddIdeaModalOpen(true);
+  };
+  const handleReorderIdeas = async (reorderedIdeas: CreativeIdea[]) => {
+    try {
+        const ideasToUpdate = reorderedIdeas.map((idea, index) => ({
+            ...idea,
+            order: reorderedIdeas.length - index,
+        }));
+        setLocalCreativeIdeas(ideasToUpdate);
+        const orderedIds = ideasToUpdate.map(i => i.id);
+        await creativeIdeasApi.reorderCreativeIdeas(orderedIds);
+    } catch (e) {
+        console.error("重新排序失败:", e);
+    }
+  };
+  const handleUseCreativeIdea = (idea: CreativeIdea) => {
+    setActiveSmartTemplate(null);
+    setActiveSmartPlusTemplate(null);
+    setActiveBPTemplate(null);
+    // 保存当前使用的创意库（用于扣费）
+    setActiveCreativeIdea(idea);
+    // 应用创意库建议的宽高比和分辨率
+    if (idea.suggestedAspectRatio) {
+      setAspectRatio(idea.suggestedAspectRatio);
+    }
+    if (idea.suggestedResolution) {
+      setImageSize(idea.suggestedResolution);
+    }
+    // Reset BP
+    setBpInputs({});
+    if (idea.isBP) {
+        // BP模式模板
+        setActiveBPTemplate(idea);
+        setPrompt(''); // BP starts empty, waits for generation/fill
+        // Initialize inputs for 'input' type fields
+        if (idea.bpFields) {
+            const initialInputs: Record<string, string> = {};
+            idea.bpFields.forEach(v => {
+                if (v.type === 'input') {
+                    initialInputs[v.id] = '';
+                }
+            });
+            setBpInputs(initialInputs);
+        } else if (idea.bpVariables) { 
+            // Migration fallback
+            const initialInputs: Record<string, string> = {};
+            idea.bpVariables.forEach(v => initialInputs[v.id] = '');
+            setBpInputs(initialInputs);
+        }
+    } else {
+        // 非BP模式 = 普通模式模板，直接填充提示词
+        setActiveSmartTemplate(idea);
+        setPrompt(idea.prompt); // 直接填充模板的提示词
+    }
+    setView('editor');
+  };
+  const activeFile = activeFileIndex !== null ? files[activeFileIndex] : null;
+  const handleGenerateSmartPrompt = useCallback(async () => {
+    const activeTemplate = activeSmartTemplate || activeSmartPlusTemplate || activeBPTemplate;
+    // 检查API配置：要么有Gemini Key，要么启用了贞贞API
+    const hasValidApi = apiKey || (thirdPartyApiConfig.enabled && thirdPartyApiConfig.apiKey);
+    // 创建新的 AbortController
+    const controller = new AbortController();
+    setAbortController(controller);
+    setSmartPromptGenStatus(ApiStatus.Loading);
+    setError(null);
+    try {
+      // 无创意库模式 - 纯提示词优化
+      if (!activeTemplate) {
+        if (!hasValidApi) {
+          alert('提示词优化需要配置 API Key（Gemini 或贞贞API）');
+          setSmartPromptGenStatus(ApiStatus.Idle);
+          return;
+        }
+        if (!prompt.trim()) {
+          alert('请先输入提示词');
+          setSmartPromptGenStatus(ApiStatus.Idle);
+          return;
+        }
+        // 调用提示词优化函数
+        const optimizedPrompt = await optimizePrompt(prompt);
+        setPrompt(optimizedPrompt);
+        setSmartPromptGenStatus(ApiStatus.Success);
+        setAbortController(null);
+        return;
+      }
+      if (activeBPTemplate) {
+          // BP Mode Logic (New Orchestration)
+          if (!hasValidApi) {
+             alert('BP 模式运行智能体需要配置 API Key（Gemini 或贞贞API）');
+             setSmartPromptGenStatus(ApiStatus.Idle);
+             return;
+          }
+          // BP模式支持有图片或无图片，传递 activeFile（可能为 null）
+          const finalPrompt = await processBPTemplate(activeFile, activeBPTemplate, bpInputs);
+          setPrompt(finalPrompt);
+      } else {
+          // Standard/Smart Logic (Legacy)
+          if (!hasValidApi) {
+             alert('智能提示词生成需要配置 API Key（Gemini 或贞贞API）');
+             setSmartPromptGenStatus(ApiStatus.Idle);
+             return;
+          }
+          if (!activeFile) {
+            alert('请先上传并选择一张图片');
+            setSmartPromptGenStatus(ApiStatus.Idle);
+            return;
+          }
+          if (activeSmartTemplate && !prompt.trim()) {
+            alert('请输入关键词');
+            setSmartPromptGenStatus(ApiStatus.Idle);
+            return;
+          }
+          const newPromptText = await generateCreativePromptFromImage({
+              file: activeFile,
+              idea: activeTemplate,
+              keyword: prompt, 
+              smartPlusConfig: activeTemplate.isSmartPlus ? smartPlusOverrides : undefined,
+          });
+          setPrompt(newPromptText); 
+      }
+      setSmartPromptGenStatus(ApiStatus.Success);
+      setAbortController(null); // 清除控制器
+    } catch (e: unknown) {
+      // 检查是否是用户主动取消
+      if (e instanceof Error && e.name === 'AbortError') {
+        console.log('BP处理已被用户取消');
+        setSmartPromptGenStatus(ApiStatus.Idle);
+        setAbortController(null); // 清除控制器
+        return;
+      }
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
+      console.error(errorMessage);
+      alert(`智能提示词生成失败: ${errorMessage}`);
+      setSmartPromptGenStatus(ApiStatus.Error);
+      setAbortController(null); // 清除控制器
+    }
+  }, [activeFile, prompt, apiKey, thirdPartyApiConfig, activeSmartTemplate, activeSmartPlusTemplate, activeBPTemplate, smartPlusOverrides, bpInputs, abortController]);
+    // 安全保存桌面项目到后端 API（移除大型 base64 数据）
+    const safeDesktopSave = useCallback(async (items: DesktopItem[]) => {
+      try {
+        // 保存前移除 base64 imageUrl 以节省空间（有 historyId 可恢复）
+        const itemsForStorage = items.map(item => {
+          if (item.type === 'image') {
+            const imageItem = item as DesktopImageItem;
+            // 如果 imageUrl 是 base64 且有 historyId，则不存储 imageUrl
+            if (imageItem.imageUrl?.startsWith('data:') && imageItem.historyId) {
+              const { imageUrl, ...rest } = imageItem;
+              return { ...rest, imageUrl: '' }; // 留空标记，加载时从历史恢复
+            }
+            // 本地文件 URL 保留
+            if (imageItem.imageUrl?.startsWith('/files/')) {
+              return imageItem;
+            }
+          }
+          return item;
+        });
+        // 保存到后端 API（本地文件）
+        await desktopApi.saveDesktopItems(itemsForStorage);
+      } catch (e) {
+        console.error('Failed to save desktop items:', e);
+      }
+    }, []);
+    // 桌面操作处理
+    const handleDesktopItemsChange = useCallback((items: DesktopItem[]) => {
+      setDesktopItems(items);
+      safeDesktopSave(items);
+    }, [safeDesktopSave]);
+    // 查找桌面空闲位置
+    const findNextFreePosition = useCallback((): { x: number, y: number } => {
+      const gridSize = 100;
+      const maxCols = 10; // 每行最多10个
+      const occupiedPositions = new Set(
+        desktopItems
+          .filter(item => {
+            // 只考虑不在文件夹内的项目
+            const isInFolder = desktopItems.some(
+              other => other.type === 'folder' && (other as DesktopFolderItem).itemIds.includes(item.id)
+            );
+            return !isInFolder;
+          })
+          .map(item => `${Math.round(item.position.x / gridSize)},${Math.round(item.position.y / gridSize)}`)
+      );
+      // 从左上角开始找空位
+      for (let y = 0; y < 100; y++) {
+        for (let x = 0; x < maxCols; x++) {
+          const key = `${x},${y}`;
+          if (!occupiedPositions.has(key)) {
+            return { x: x * gridSize, y: y * gridSize };
+          }
+        }
+      }
+      return { x: 0, y: 0 };
+    }, [desktopItems]);
+    const handleAddToDesktop = useCallback((item: DesktopImageItem) => {
+      // 添加图片到桌面 - 使用函数式更新确保使用最新状态
+      setDesktopItems(prevItems => {
+        // 在最新状态上查找空闲位置
+        const gridSize = 100;
+        const maxCols = 8; // 固定8列
+        // 位置从0开始（渲染时会自动加上居中偏移）
+        const occupiedPositions = new Set(
+          prevItems
+            .filter(existingItem => {
+              const isInFolder = prevItems.some(
+                other => other.type === 'folder' && (other as DesktopFolderItem).itemIds.includes(existingItem.id)
+              );
+              return !isInFolder;
+            })
+            .map(existingItem => `${Math.round(existingItem.position.x / gridSize)},${Math.round(existingItem.position.y / gridSize)}`)
+        );
+        // 从第0列、第0行开始找空位
+        let freePos = { x: 0, y: 0 };
+        for (let y = 0; y < 100; y++) {
+          for (let x = 0; x < maxCols; x++) {
+            const key = `${x},${y}`;
+            if (!occupiedPositions.has(key)) {
+              freePos = { x: x * gridSize, y: y * gridSize };
+              break;
+            }
+          }
+          // 检查是否已找到空位
+          const foundKey = `${Math.round(freePos.x / gridSize)},${Math.round(freePos.y / gridSize)}`;
+          if (!occupiedPositions.has(foundKey)) break;
+        }
+        // 更新项目位置
+        const itemWithPosition = { ...item, position: freePos };
+        const newItems = [...prevItems, itemWithPosition];
+        // 延迟保存到后端 API
+        setTimeout(() => {
+          safeDesktopSave(newItems);
+        }, 0);
+        return newItems;
+      });
+    }, [safeDesktopSave]);
+    // 画布创建时创建对应的桌面文件夹
+    const handleCanvasCreated = useCallback((canvasId: string, canvasName: string) => {
+      // 检查是否已有对应文件夹
+      if (canvasToFolderMap[canvasId]) {
+        console.log('[Canvas] 画布已有对应文件夹:', canvasToFolderMap[canvasId]);
+        return;
+      }
+      // 创建新的桌面文件夹
+      const now = Date.now();
+      const folderId = `canvas-folder-${canvasId}-${now}`;
+      const newFolder: DesktopFolderItem = {
+        id: folderId,
+        type: 'folder',
+        name: `🎨 ${canvasName}`,
+        position: { x: 0, y: 0 }, // 位置将由handleAddToDesktop自动计算
+        itemIds: [],
+        color: '#3b82f6', // 蓝色标识画布文件夹
+        createdAt: now,
+        updatedAt: now,
+      };
+      // 添加到桌面
+      handleAddToDesktop(newFolder);
+      // 保存映射关系
+      const newMap = { ...canvasToFolderMap, [canvasId]: folderId };
+      setCanvasToFolderMap(newMap);
+      localStorage.setItem('canvas_folder_map', JSON.stringify(newMap));
+      console.log('[Canvas] 创建画布文件夹:', canvasName, '->', folderId);
+    }, [canvasToFolderMap, handleAddToDesktop]);
+    // 画布生成图片同步到桌面（添加到对应画布文件夹）
+    const handleCanvasImageGenerated = useCallback(async (imageUrl: string, prompt: string, canvasId?: string, canvasName?: string) => {
+      // 先将base64图片保存到本地文件
+      let finalImageUrl = imageUrl;
+      if (imageUrl.startsWith('data:')) {
+        try {
+          const result = await saveToOutput(imageUrl, `canvas_${Date.now()}.png`);
+          if (result.success && result.data?.url) {
+            finalImageUrl = result.data.url; // 使用本地文件URL
+            console.log('[Canvas] 图片已保存到:', finalImageUrl);
+          }
+        } catch (e) {
+          console.error('[Canvas] 保存图片失败:', e);
+        }
+      }
+      // 创建新的桌面图片项
+      const now = Date.now();
+      const newImageItem: DesktopImageItem = {
+        id: `canvas-img-${now}-${Math.random().toString(36).substring(2, 8)}`,
+        type: 'image',
+        name: `画布(${prompt.slice(0, 10)}...)`,
+        position: { x: 0, y: 0 }, // 位置将由handleAddToDesktop自动计算
+        imageUrl: finalImageUrl,
+        prompt: prompt,
+        createdAt: now,
+        updatedAt: now,
+      };
+      // 如果有画布ID，尝试添加到对应文件夹
+      const folderId = canvasId ? canvasToFolderMap[canvasId] : undefined;
+      if (folderId) {
+        // 添加图片到桌面
+        handleAddToDesktop(newImageItem);
+        // 将图片添加到画布文件夹
+        setDesktopItems(prev => {
+          const folder = prev.find(item => item.id === folderId) as DesktopFolderItem | undefined;
+          if (folder) {
+            const updatedFolder: DesktopFolderItem = {
+              ...folder,
+              itemIds: [...folder.itemIds, newImageItem.id],
+              updatedAt: now,
+            };
+            const newItems = prev.map(item => item.id === folderId ? updatedFolder : item);
+            setTimeout(() => safeDesktopSave(newItems), 0);
+            return newItems;
+          }
+          return prev;
+        });
+        console.log('[Canvas] 图片已添加到画布文件夹:', canvasName, newImageItem.name);
+      } else {
+        // 无对应文件夹，直接添加到桌面
+        handleAddToDesktop(newImageItem);
+        console.log('[Canvas] 图片已同步到桌面:', newImageItem.name);
+      }
+    }, [handleAddToDesktop, canvasToFolderMap, safeDesktopSave]);
+  const handleGenerateClick = useCallback(async () => {
+    // 检查API配置
+    const hasValidApi = 
+      (thirdPartyApiConfig.enabled && thirdPartyApiConfig.apiKey) ||  // 本地贞贞API
+      apiKey;  // 本地Gemini
+    if (!hasValidApi) {
+      setError('请先配置 API Key（贞贞API 或 Gemini）');
+      setStatus(ApiStatus.Error);
+      return;
+    }
+    // 获取当前模板的权限设置
+    const activeTemplate = activeBPTemplate || activeSmartPlusTemplate || activeSmartTemplate;
+    const canViewPrompt = activeTemplate?.allowViewPrompt !== false;
+    let finalPrompt = prompt;
+    // 如果不允许查看提示词，需要先自动生成提示词
+    if (!canViewPrompt && activeTemplate) {
+      // 并发模式不设置全局 Loading 状态，使用占位项显示进度
+      setError(null);
+      try {
+        console.log('[Generate] 不允许查看提示词，自动生成中...');
+        if (activeBPTemplate) {
+          const activeFile = files.length > 0 ? files[0] : null;
+          finalPrompt = await processBPTemplate(activeFile, activeBPTemplate, bpInputs);
+        } else if (activeSmartPlusTemplate || activeSmartTemplate) {
+          const activeFile = files.length > 0 ? files[0] : null;
+          if (!activeFile) {
+            setError('Smart/Smart+模式需要上传图片');
+            setStatus(ApiStatus.Error);
+            return;
+          }
+          finalPrompt = await generateCreativePromptFromImage({
+            file: activeFile,
+            idea: activeTemplate,
+            keyword: prompt,
+            smartPlusConfig: activeTemplate.isSmartPlus ? smartPlusOverrides : undefined,
+          });
+        }
+        console.log('[Generate] 提示词已生成，开始生图');
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : '提示词生成失败';
+        setError(`生成失败: ${errorMessage}`);
+        setStatus(ApiStatus.Error);
+        return;
+      }
+    } else {
+      if (!prompt) {
+        setError('请输入提示词');
+        setStatus(ApiStatus.Error);
+        return;
+      }
+      if ((activeSmartTemplate || activeSmartPlusTemplate || activeBPTemplate) && !prompt.trim()) {
+        setError(`请先点击企鹅按钮生成/填入提示词`);
+        setStatus(ApiStatus.Error);
+        return;
+      }
+    }
+    // 并发模式不设置全局 Loading 状态，使用占位项显示进度
+    setError(null);
+    setGeneratedContent(null);
+    const creativeIdeaCost = activeCreativeIdea?.cost;
+    const promptToSave = canViewPrompt ? finalPrompt : '[加密提示词]';
+    const activeTemplateTitle = activeBPTemplate?.title || activeSmartPlusTemplate?.title || activeSmartTemplate?.title;
+    // 计算基础命名
+    let baseItemName = '';
+    if (activeTemplateTitle) {
+      baseItemName = activeTemplateTitle;
+    } else {
+      baseItemName = finalPrompt.slice(0, 15) + (finalPrompt.length > 15 ? '...' : '');
+    }
+    // 获取创意库类型
+    let templateType: 'smart' | 'smartPlus' | 'bp' | 'none' = 'none';
+    let templateId: number | undefined;
+    if (activeBPTemplate) {
+      templateType = 'bp';
+      templateId = activeBPTemplate.id;
+    } else if (activeSmartPlusTemplate) {
+      templateType = 'smartPlus';
+      templateId = activeSmartPlusTemplate.id;
+    } else if (activeSmartTemplate) {
+      templateType = 'smart';
+      templateId = activeSmartTemplate.id;
+    }
+    // === 批量并发生成逻辑 ===
+    if (batchCount > 1) {
+      // 创建 loading 占位项
+      const placeholderItems: DesktopImageItem[] = [];
+      const existingCount = desktopItems.filter(item => 
+        item.type === 'image' && item.name.startsWith(baseItemName)
+      ).length;
+      for (let i = 0; i < batchCount; i++) {
+        const freePos = findNextFreePosition();
+        const itemName = activeTemplateTitle 
+          ? `${activeTemplateTitle}(${existingCount + i + 1})`
+          : `${baseItemName} #${i + 1}`;
+        const placeholderItem: DesktopImageItem = {
+          id: `img-${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${i}`,
+          type: 'image',
+          name: itemName,
+          position: { x: freePos.x + i * 100, y: freePos.y }, // 横向排列
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          imageUrl: '', // 空的，等待填充
+          prompt: promptToSave,
+          model: thirdPartyApiConfig.enabled ? 'nano-banana-2' : 'Gemini',
+          isThirdParty: thirdPartyApiConfig.enabled,
+          isLoading: true, // 标记为加载中
+        };
+        placeholderItems.push(placeholderItem);
+      }
+      // 添加所有占位项到桌面
+      const newItems = [...desktopItems, ...placeholderItems];
+      setDesktopItems(newItems);
+      await desktopApi.saveDesktopItems(newItems);
+      // 并发发起所有生成请求
+      const generatePromises = placeholderItems.map(async (placeholder, index) => {
+        try {
+          const result = await editImageWithGemini(files, finalPrompt, { aspectRatio, imageSize }, creativeIdeaCost);
+          if (result.imageUrl) {
+            // 保存到历史记录
+            const saveResult = await saveToHistory(result.imageUrl, promptToSave, thirdPartyApiConfig.enabled, files.length > 0 ? files : [], {
+              templateId,
+              templateType,
+              bpInputs: templateType === 'bp' ? { ...bpInputs } : undefined,
+              smartPlusOverrides: templateType === 'smartPlus' ? [...smartPlusOverrides] : undefined
+            });
+            const localImageUrl = saveResult?.localImageUrl || result.imageUrl;
+            const historyId = saveResult?.historyId;
+            // 更新桌面项：设置图片URL，清除loading状态，并保存到磁盘
+            setDesktopItems(prev => {
+              const updatedItems = prev.map(item => 
+                item.id === placeholder.id 
+                  ? { ...item, imageUrl: localImageUrl, isLoading: false, historyId } as DesktopImageItem
+                  : item
+              );
+              // 立即保存更新后的状态到磁盘，避免数据丢失
+              safeDesktopSave(updatedItems);
+              return updatedItems;
+            });
+            console.log(`[Batch Generate] #${index + 1} 成功`);
+            return { success: true, index };
+          }
+          throw new Error('API 未返回图片');
+        } catch (e: unknown) {
+          const errorMessage = e instanceof Error ? e.message : '生成失败';
+          console.error(`[Batch Generate] #${index + 1} 失败:`, errorMessage);
+          // 更新桌面项：设置错误状态，并保存到磁盘
+          setDesktopItems(prev => {
+            const updatedItems = prev.map(item => 
+              item.id === placeholder.id 
+                ? { ...item, isLoading: false, loadingError: errorMessage } as DesktopImageItem
+                : item
+            );
+            // 保存错误状态到磁盘
+            safeDesktopSave(updatedItems);
+            return updatedItems;
+          });
+          return { success: false, index, error: errorMessage };
+        }
+      });
+      // 等待所有请求完成
+      const results = await Promise.all(generatePromises);
+      const successCount = results.filter(r => r.success).length;
+      console.log(`[Batch Generate] 完成: ${successCount}/${batchCount} 成功`);
+      // 批量模式不设置全局状态，避免影响其他正在进行的批次
+      // 如果有错误，只在控制台输出
+      if (successCount < batchCount) {
+        console.warn(`[批量生成] 部分失败: ${successCount}/${batchCount}`);
+      }
+      // 批量生成完成后的日志（单个生成结果已在各自回调中保存）
+      console.log('[Batch Generate] 所有任务处理完成，状态已分别保存');
+      return;
+    }
+    // === 单张生成逻辑（采用占位项模式，支持并发） ===
+    // 先创建占位项
+    const freePos = findNextFreePosition();
+    const existingCount = desktopItems.filter(item => 
+      item.type === 'image' && item.name.startsWith(baseItemName)
+    ).length;
+    const itemName = activeTemplateTitle 
+      ? `${activeTemplateTitle}(${existingCount + 1})`
+      : baseItemName;
+    const placeholderId = `img-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const placeholderItem: DesktopImageItem = {
+      id: placeholderId,
+      type: 'image',
+      name: itemName,
+      position: freePos,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      imageUrl: '', // 空的，等待填充
+      prompt: promptToSave,
+      model: thirdPartyApiConfig.enabled ? 'nano-banana-2' : 'Gemini',
+      isThirdParty: thirdPartyApiConfig.enabled,
+      isLoading: true, // 标记为加载中
+    };
+    // 添加占位项到桌面
+    const newItems = [...desktopItems, placeholderItem];
+    setDesktopItems(newItems);
+    desktopApi.saveDesktopItems(newItems);
+    try {
+      const result = await editImageWithGemini(files, finalPrompt, { aspectRatio, imageSize }, creativeIdeaCost);
+      console.log('[Generate] 生成成功');
+      if (result.imageUrl) {
+        // 保存到历史记录
+        const saveResult = await saveToHistory(result.imageUrl, promptToSave, thirdPartyApiConfig.enabled, files.length > 0 ? files : [], {
+          templateId,
+          templateType,
+          bpInputs: templateType === 'bp' ? { ...bpInputs } : undefined,
+          smartPlusOverrides: templateType === 'smartPlus' ? [...smartPlusOverrides] : undefined
+        });
+        const savedHistoryId = saveResult?.historyId;
+        const localImageUrl = saveResult?.localImageUrl || result.imageUrl;
+        // 更新占位项：设置图片URL，清除loading状态，并保存到磁盘
+        setDesktopItems(prev => {
+          const updatedItems = prev.map(item => 
+            item.id === placeholderId 
+              ? { ...item, imageUrl: localImageUrl, isLoading: false, historyId: savedHistoryId } as DesktopImageItem
+              : item
+          );
+          // 立即保存更新后的状态到磁盘，避免数据丢失
+          safeDesktopSave(updatedItems);
+          return updatedItems;
+        });
+        // 显示结果浮层
+        setGeneratedContent({ ...result, originalFiles: [...files] });
+        setStatus(ApiStatus.Success);
+        if (autoSave) {
+          downloadImage(result.imageUrl);
+        }
+      } else {
+        throw new Error('API 未返回图片');
+      }
+    } catch (e: unknown) {
+      let errorMessage = 'An unknown error occurred.';
+      if (e instanceof Error) {
+        errorMessage = e.message;
+      }
+      // 更新占位项：设置错误状态，并保存到磁盘
+      setDesktopItems(prev => {
+        const updatedItems = prev.map(item => 
+          item.id === placeholderId 
+            ? { ...item, isLoading: false, loadingError: errorMessage } as DesktopImageItem
+            : item
+        );
+        // 保存错误状态到磁盘
+        safeDesktopSave(updatedItems);
+        return updatedItems;
+      });
+      if (errorMessage.includes('🐧') || errorMessage.includes('Pebbling') || errorMessage.includes('鹅卵石') || errorMessage.includes('余额')) {
+        setError(errorMessage);
+      } else {
+        setError(`生成失败: ${errorMessage}`);
+      }
+      console.error('[Generate] 生成失败');
+      setStatus(ApiStatus.Error);
+    }
+  }, [files, prompt, apiKey, thirdPartyApiConfig, activeSmartTemplate, activeSmartPlusTemplate, activeBPTemplate, autoSave, downloadImage, aspectRatio, imageSize, activeCreativeIdea, findNextFreePosition, handleAddToDesktop, bpInputs, smartPlusOverrides, batchCount, desktopItems, saveToHistory]);
+  // 卸载创意库：清空所有模板设置和提示词
+  const handleClearTemplate = useCallback(() => {
+    setActiveSmartTemplate(null);
+    setActiveSmartPlusTemplate(null);
+    setActiveBPTemplate(null);
+    setActiveCreativeIdea(null);
+    setBpInputs({});
+    setSmartPlusOverrides(JSON.parse(JSON.stringify(defaultSmartPlusConfig)));
+    setPrompt(''); // 清空提示词
+  }, []);
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        event.preventDefault();
+        handleGenerateClick();
+      }
+      // Esc 键卸载创意库
+      if (event.key === 'Escape') {
+        const hasActiveTemplate = activeSmartTemplate || activeSmartPlusTemplate || activeBPTemplate;
+        if (hasActiveTemplate) {
+          event.preventDefault();
+          handleClearTemplate();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleGenerateClick, activeSmartTemplate, activeSmartPlusTemplate, activeBPTemplate, handleClearTemplate]);
+  // 修改canGenerate条件
+  // 如果不允许查看提示词，则只要有模板就可以生成
+  // 完全支持并发，不受 Loading 状态限制（所有生成都采用占位项模式）
+  const activeTemplateForCheck = activeBPTemplate || activeSmartPlusTemplate || activeSmartTemplate;
+  const canViewPromptForCheck = activeTemplateForCheck?.allowViewPrompt !== false;
+  const canGenerate = (canViewPromptForCheck ? prompt.trim().length > 0 : !!activeTemplateForCheck);
+  const isSmartReady = !!activeSmartTemplate && prompt.trim().length > 0;
+  const isSmartPlusReady = !!activeSmartPlusTemplate;
+  const isBPReady = !!activeBPTemplate; // BP is ready to click penguin anytime to fill variables
+  const isPromptOnlyReady = !activeSmartTemplate && !activeSmartPlusTemplate && !activeBPTemplate && prompt.trim().length > 0; // 无创意库但有提示词
+  const canGenerateSmartPrompt = (((files.length > 0) && (isSmartReady || isSmartPlusReady)) || isBPReady || isPromptOnlyReady) && smartPromptGenStatus !== ApiStatus.Loading;
+  const handleBpInputChange = (id: string, value: string) => {
+      setBpInputs(prev => ({...prev, [id]: value}));
+  };
+  // 再次编辑：将生成的图片转换为File，清空其他图片，卸载创意库
+  const handleEditAgain = useCallback(async () => {
+    if (!generatedContent?.imageUrl) return;
+    try {
+      let blob: Blob;
+      if (generatedContent.imageUrl.startsWith('data:')) {
+        // base64 转 Blob
+        const response = await fetch(generatedContent.imageUrl);
+        blob = await response.blob();
+      } else {
+        // 外部URL，fetch获取
+        const response = await fetch(generatedContent.imageUrl);
+        blob = await response.blob();
+      }
+      // 创建 File 对象
+      const timestamp = Date.now();
+      const file = new File([blob], `generated-${timestamp}.png`, { type: 'image/png' });
+      // 清空所有图片，仅保留结果图并选中
+      setFiles([file]);
+      setActiveFileIndex(0);
+      // 清空创意库，还原默认状态
+      setActiveSmartTemplate(null);
+      setActiveSmartPlusTemplate(null);
+      setActiveBPTemplate(null);
+      setActiveCreativeIdea(null);
+      setBpInputs({});
+      setSmartPlusOverrides(JSON.parse(JSON.stringify(defaultSmartPlusConfig)));
+      setPrompt(''); // 清空提示词
+      // 清除当前生成结果，准备再次编辑
+      setGeneratedContent(null);
+      setStatus(ApiStatus.Idle);
+    } catch (e) {
+      console.error('转换图片失败:', e);
+      setError('无法将图片添加到编辑列表');
+    }
+  }, [generatedContent]);
+  // 重新生成：恢复原始输入状态，等待用户手动点击生成
+  const handleRegenerate = useCallback(() => {
+    // 保存当初使用的所有原始图片
+    const originalFiles = generatedContent?.originalFiles || [];
+    // 恢复原始输入图片到 UI 上
+    if (originalFiles.length > 0) {
+      setFiles(originalFiles);
+      setActiveFileIndex(0);
+    } else {
+      setFiles([]);
+      setActiveFileIndex(null);
+    }
+    // 关闭结果浮层，回到编辑状态
+    setStatus(ApiStatus.Idle);
+    setGeneratedContent(null);
+    setError(null);
+    // 提示已恢复 - 保留 prompt 不变，用户可以手动点生成
+  }, [generatedContent]);
+  const handleDesktopImageDoubleClick = useCallback((item: DesktopImageItem) => {
+    // 双击图片预览
+    setPreviewImageUrl(item.imageUrl);
+  }, []);
+  // 关闭生成结果浮层
+  const handleDismissResult = useCallback(() => {
+    setStatus(ApiStatus.Idle);
+    setGeneratedContent(null);
+    setError(null);
+  }, []);
+  const handleRenameItem = useCallback((id: string, newName: string) => {
+    const updatedItems = desktopItems.map(item => {
+      if (item.id === id) {
+        return { ...item, name: newName, updatedAt: Date.now() };
+      }
+      return item;
+    });
+    handleDesktopItemsChange(updatedItems);
+  }, [desktopItems, handleDesktopItemsChange]);
+  // 桌面图片操作 - 预览
+  const handleDesktopImagePreview = useCallback((item: DesktopImageItem) => {
+    setPreviewImageUrl(item.imageUrl);
+  }, []);
+  // 桌面图片操作 - 再编辑（将图片添加到上传列表，不携带提示词）
+  const handleDesktopImageEditAgain = useCallback(async (item: DesktopImageItem) => {
+    try {
+      // 将图片URL转换为File对象
+      const response = await fetch(item.imageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `${item.name}.png`, { type: 'image/png' });
+      // 添加到文件列表
+      setFiles(prev => [...prev, file]);
+      setActiveFileIndex(files.length); // 选中新添加的图片
+      // 不携带提示词 - 让用户重新输入
+      // if (item.prompt) {
+      //   setPrompt(item.prompt);
+      // }
+    } catch (e) {
+      console.error('添加图片到编辑列表失败:', e);
+    }
+  }, [files.length]);
+  // 工具函数：将 data URL 转换为 Blob
+  const dataURLtoBlob = (dataURL: string): Blob => {
+    const arr = dataURL.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  };
+  // 桌面图片操作 - 重新生成（只恢复状态，不自动生成）
+  const handleDesktopImageRegenerate = useCallback(async (item: DesktopImageItem) => {
+    if (!item.prompt) {
+      setError('此图片没有保存原始提示词，无法重新生成');
+      setStatus(ApiStatus.Error);
+      return;
+    }
+    // 恢复提示词
+    setPrompt(item.prompt);
+    // 尝试恢复原始输入图片和创意库配置（如果有历史记录）
+    if (item.historyId) {
+      const historyItem = generationHistory.find(h => h.id === item.historyId);
+      if (historyItem) {
+        // 优先从本地路径恢复输入图片（新版本）
+        if (historyItem.inputImagePaths && historyItem.inputImagePaths.length > 0) {
+          try {
+            const restoredFiles = await Promise.all(historyItem.inputImagePaths.map(async (path) => {
+              const response = await fetch(path);
+              const blob = await response.blob();
+              const filename = path.split('/').pop() || 'restored-input.png';
+              return new File([blob], filename, { type: blob.type });
+            }));
+            setFiles(restoredFiles);
+            setActiveFileIndex(0);
+          } catch (e) {
+            console.warn('从本地路径恢复图片失败:', e);
+            setFiles([]);
+            setActiveFileIndex(null);
+          }
+        }
+        // 其次从 base64 数据恢复（兼容旧版本和贞贞 API）
+        else if (historyItem.inputImages && historyItem.inputImages.length > 0) {
+          try {
+            const restoredFiles = historyItem.inputImages.map((img) => {
+              const base64Data = `data:${img.type};base64,${img.data}`;
+              const blob = dataURLtoBlob(base64Data);
+              return new File([blob], img.name, { type: img.type });
+            });
+            setFiles(restoredFiles);
+            setActiveFileIndex(0);
+            console.log('[重新生成] 从 base64 数组恢复了', restoredFiles.length, '张图片');
+          } catch (e) {
+            console.warn('从 base64 数组恢复图片失败:', e);
+            setFiles([]);
+            setActiveFileIndex(null);
+          }
+        }
+        // 最后尝试单图 base64（更旧的版本）
+        else if (historyItem.inputImageData && historyItem.inputImageName && historyItem.inputImageType) {
+          try {
+            const base64Data = `data:${historyItem.inputImageType};base64,${historyItem.inputImageData}`;
+            const blob = dataURLtoBlob(base64Data);
+            const file = new File([blob], historyItem.inputImageName, { type: historyItem.inputImageType });
+            setFiles([file]);
+            setActiveFileIndex(0);
+            console.log('[重新生成] 从单图 base64 恢复了图片');
+          } catch (e) {
+            console.warn('从单图 base64 恢复图片失败:', e);
+            setFiles([]);
+            setActiveFileIndex(null);
+          }
+        } else {
+          // 没有输入图片
+          setFiles([]);
+          setActiveFileIndex(null);
+        }
+        // 恢复创意库配置
+        setActiveSmartTemplate(null);
+        setActiveSmartPlusTemplate(null);
+        setActiveBPTemplate(null);
+        setActiveCreativeIdea(null);
+        setBpInputs({});
+        setSmartPlusOverrides(JSON.parse(JSON.stringify(defaultSmartPlusConfig)));
+        if (historyItem.creativeTemplateType && historyItem.creativeTemplateType !== 'none' && historyItem.creativeTemplateId) {
+          const template = creativeIdeas.find(idea => idea.id === historyItem.creativeTemplateId);
+          if (template) {
+            // 设置当前使用的创意库（用于扣费）
+            setActiveCreativeIdea(template);
+            if (historyItem.creativeTemplateType === 'bp') {
+              setActiveBPTemplate(template);
+              if (historyItem.bpInputs) {
+                setBpInputs(historyItem.bpInputs);
+              }
+            } else {
+              // 非BP模式 = 普通模式模板
+              setActiveSmartTemplate(template);
+            }
+          }
+        }
+      } else {
+        // 找不到历史记录，清空输入
+        setFiles([]);
+        setActiveFileIndex(null);
+      }
+    } else {
+      // 没有历史记录，清空输入
+      setFiles([]);
+      setActiveFileIndex(null);
+    }
+      // 关闭结果浮层，回到编辑状态
+    setStatus(ApiStatus.Idle);
+    setGeneratedContent(null);
+    setError(null);
+    // 取消桌面选中，让用户注意力回到编辑区
+    setDesktopSelectedIds([]);
+  }, [generationHistory, creativeIdeas]);
+  const { theme, themeName } = useTheme();
+  const isDark = themeName !== 'light';
+  return (
+    <div 
+      className="h-screen font-sans flex flex-row overflow-hidden selection:bg-blue-500/30 transition-colors duration-300"
+      style={{ 
+        backgroundColor: theme.colors.bgPrimary,
+        color: theme.colors.textPrimary
+      }}
+    >
+      {/* 雪花效果 */}
+      <SnowfallEffect />
+      <input 
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileInputChange}
+        multiple
+      />
+      <input
+        ref={importIdeasInputRef}
+        type="file"
+        accept="application/json"
+        className="hidden"
+        onChange={handleImportIdeas}
+      />
+      {/* 右侧面板移动到左侧 - 画布模式下隐藏 */}
+      {view !== 'canvas' && (
+      <div className="flex-shrink-0">
+        <RightPanel 
+          creativeIdeas={creativeIdeas}
+          handleUseCreativeIdea={handleUseCreativeIdea}
+          setAddIdeaModalOpen={setAddIdeaModalOpen}
+          setView={setView}
+          onDeleteIdea={handleDeleteCreativeIdea}
+          onEditIdea={handleStartEditIdea}
+          onToggleFavorite={handleToggleFavorite}
+          onClearRecentUsage={handleClearRecentUsage}
+        />
+      </div>
+      )}
+      <div className="relative flex-1 flex min-w-0">
+        <Canvas 
+          view={view}
+          setView={setView}
+          files={files}
+          onUploadClick={() => fileInputRef.current?.click()}
+          creativeIdeas={creativeIdeas}
+          localCreativeIdeas={localCreativeIdeas}
+          onBack={() => setView('editor')}
+          onAdd={handleAddNewIdea}
+          onDelete={handleDeleteCreativeIdea}
+          onDeleteMultiple={handleDeleteMultipleCreativeIdeas}
+          onEdit={handleStartEditIdea}
+          onUse={handleUseCreativeIdea}
+          status={status}
+          error={error}
+          content={generatedContent}
+          onPreviewClick={setPreviewImageUrl}
+          onExportIdeas={handleExportIdeas}
+          onImportIdeas={() => importIdeasInputRef.current?.click()}
+          onImportById={handleImportCreativeById}
+          onReorderIdeas={handleReorderIdeas}
+          onEditAgain={handleEditAgain}
+          onRegenerate={handleRegenerate}
+          onDismissResult={handleDismissResult}
+          prompt={prompt}
+          imageSize={imageSize}
+          history={generationHistory}
+          onHistorySelect={handleHistorySelect}
+          onHistoryDelete={handleHistoryDelete}
+          onHistoryClear={handleHistoryClear}
+          desktopItems={desktopItems}
+          onDesktopItemsChange={handleDesktopItemsChange}
+          onDesktopImageDoubleClick={handleDesktopImageDoubleClick}
+          desktopSelectedIds={desktopSelectedIds}
+          onDesktopSelectionChange={setDesktopSelectedIds}
+          openFolderId={openFolderId}
+          onFolderOpen={setOpenFolderId}
+          onFolderClose={() => setOpenFolderId(null)}
+          openStackId={openStackId}
+          onStackOpen={setOpenStackId}
+          onStackClose={() => setOpenStackId(null)}
+          onRenameItem={handleRenameItem}
+          onDesktopImagePreview={handleDesktopImagePreview}
+          onDesktopImageEditAgain={handleDesktopImageEditAgain}
+          onDesktopImageRegenerate={handleDesktopImageRegenerate}
+          onFileDrop={handleFileSelection}
+          onCreateCreativeIdea={handleCreateCreativeIdeaFromImage}
+                    isResultMinimized={isResultMinimized}
+          setIsResultMinimized={setIsResultMinimized}
+          onToggleFavorite={handleToggleFavorite}
+          onUpdateCategory={handleUpdateCategory}
+          isImporting={isImporting}
+          isImportingById={isImportingById}
+          onCanvasImageGenerated={handleCanvasImageGenerated}
+          onCanvasCreated={handleCanvasCreated}
+          pendingCanvasImage={pendingCanvasImage}
+          onClearPendingCanvasImage={handleClearPendingCanvasImage}
+          onAddToCanvas={handleAddToCanvas}
+        />
+        {/* 画面中央下方的新建创意按钮 */}
+        <button
+          onClick={() => setAddIdeaModalOpen(true)}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-lg z-50"
+          style={{
+            background: isDark ? 'rgba(59, 130, 246, 0.9)' : 'rgba(59, 130, 246, 0.9)',
+            color: 'white',
+            boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.5)',
+            zIndex: 100
+          }}
+          title="新建创意"
+        >
+          <PlusCircleIcon className="w-8 h-8" />
+        </button>
+        {/* 批量导出组件 - 仅在选择了图片时显示 */}
+        {desktopSelectedIds.length > 0 && (
+          <div className="absolute right-4 bottom-20 z-30 animate-fade-in">
+            <BatchExport
+              selectedImages={desktopItems
+                .filter(item => desktopSelectedIds.includes(item.id) && item.type === 'image')
+                .map(item => ({
+                  id: item.id,
+                  name: item.name,
+                  imageUrl: (item as any).imageUrl
+                }))}
+            />
+          </div>
+        )}
+        {view === 'editor' && (
+             <div className="absolute left-1/2 -translate-x-1/2 z-30 transition-all duration-300 bottom-6 flex items-center gap-3">
+                {/* 批量生成数量选择器 - 简洁设计 */}
+                <div 
+                  className="flex items-center backdrop-blur-xl rounded-full px-1.5 py-1 border transition-colors"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.8)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                  }}
+                >
+                  {/* 减少按钮 */}
+                  <button
+                    onClick={() => setBatchCount(Math.max(1, batchCount - 1))}
+                    disabled={batchCount <= 1}
+                    className="w-5 h-5 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{
+                      color: isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!(batchCount <= 1)) {
+                        e.currentTarget.style.color = isDark ? 'white' : 'black';
+                        e.currentTarget.style.backgroundColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)';
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  {/* 数量显示 */}
+                  <span 
+                    className="w-6 text-center text-xs font-medium"
+                    style={{ color: isDark ? 'white' : 'black' }}
+                  >
+                    {batchCount}
+                  </span>
+                  {/* 增加按钮 */}
+                  <button
+                    onClick={() => setBatchCount(Math.min(20, batchCount + 1))}
+                    disabled={batchCount >= 20}
+                    className="w-5 h-5 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{
+                      color: isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!(batchCount >= 20)) {
+                        e.currentTarget.style.color = isDark ? 'white' : 'black';
+                        e.currentTarget.style.backgroundColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)';
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+                <GenerateButton 
+                    onClick={handleGenerateClick}
+                    disabled={!canGenerate}
+                    status={status}
+                    hasMinimizedResult={isResultMinimized && (status === ApiStatus.Loading || status === ApiStatus.Success || status === ApiStatus.Error)}
+                    onExpandResult={() => setIsResultMinimized(false)}
+                />
+             </div>
+        )}
+      </div>
+      {/* 左侧面板显示在右侧 - 受showLeftPanel状态控制，画布模式下也可使用 */}
+      {showLeftPanel && (
+      <div className="flex-shrink-0">
+        <LeftPanel 
+            files={files}
+            activeFileIndex={activeFileIndex}
+            onFileSelection={handleFileSelection}
+            onFileRemove={handleFileRemove}
+            onFileSelect={setActiveFileIndex}
+            onTriggerUpload={() => fileInputRef.current?.click()}
+            onSettingsClick={() => setSettingsModalOpen(true)}
+            currentApiMode={
+              thirdPartyApiConfig.enabled && thirdPartyApiConfig.apiKey && thirdPartyApiConfig.baseUrl
+                ? 'local-thirdparty'
+                : 'local-gemini'
+            }
+            prompt={prompt}
+            setPrompt={handleSetPrompt}
+            activeSmartTemplate={activeSmartTemplate}
+            activeSmartPlusTemplate={activeSmartPlusTemplate}
+            activeBPTemplate={activeBPTemplate}
+            bpInputs={bpInputs}
+            setBpInput={handleBpInputChange}
+            smartPlusOverrides={smartPlusOverrides}
+            setSmartPlusOverrides={setSmartPlusOverrides}
+            handleGenerateSmartPrompt={handleGenerateSmartPrompt}
+            canGenerateSmartPrompt={canGenerateSmartPrompt}
+            smartPromptGenStatus={smartPromptGenStatus}
+            onCancelSmartPrompt={handleCancelSmartPrompt}
+            aspectRatio={aspectRatio}
+            setAspectRatio={setAspectRatio}
+            imageSize={imageSize}
+            setImageSize={setImageSize}
+            isThirdPartyApiEnabled={thirdPartyApiConfig.enabled}
+            onClearTemplate={handleClearTemplate}
+            backendStatus={backendStatus}
+          />
+        </div>
+      )}
+      {previewImageUrl && (
+        <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
+      )}
+      <AddCreativeIdeaModal
+        isOpen={isAddIdeaModalOpen}
+        onClose={() => { 
+          setAddIdeaModalOpen(false); 
+          setEditingIdea(null); 
+          setPresetImageForNewIdea(null);
+          setPresetPromptForNewIdea(null);
+          setPresetAspectRatioForNewIdea(null);
+          setPresetResolutionForNewIdea(null);
+        }}
+        onSave={handleSaveCreativeIdea}
+        ideaToEdit={editingIdea}
+        presetImageUrl={presetImageForNewIdea}
+        presetPrompt={presetPromptForNewIdea}
+        presetAspectRatio={presetAspectRatioForNewIdea}
+        presetResolution={presetResolutionForNewIdea}
+      />
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        thirdPartyConfig={thirdPartyApiConfig}
+        onThirdPartyConfigChange={handleThirdPartyConfigChange}
+        geminiApiKey={apiKey}
+        onGeminiApiKeySave={handleApiKeySave}
+        autoSaveEnabled={autoSave}
+        onAutoSaveToggle={handleAutoSaveToggle}
+      />
+      {/* 左侧面板切换按钮 - 固定在右下角 */}
+      <button
+        onClick={() => setShowLeftPanel(!showLeftPanel)}
+        className="fixed bottom-6 right-6 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 z-50"
+        style={{
+          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+          color: 'white',
+          border: '2px solid rgba(255, 255, 255, 0.2)'
+        }}
+        title={showLeftPanel ? '隐藏AI创作面板' : '显示AI创作面板'}
+      >
+        {showLeftPanel ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x w-6 h-6">
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bot w-6 h-6">
+            <path d="M12 8V4m0 16v-4m-9-4h18M5 12a7 7 0 1 0 14 0a7 7 0 0 0-14 0Z" />
+          </svg>
+        )}
+      </button>
+      {/* 加载小窗 */}
+      {isLoading && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-[#171717] rounded-2xl border border-white/10 shadow-2xl shadow-black/50 px-8 py-6 flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* 加载动画 */}
+            <div className="relative w-12 h-12">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 animate-pulse" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <img src="/icons/p-icon-white.svg" alt="P" className="w-7 h-7 opacity-80" />
+              </div>
+              <div className="absolute inset-0 rounded-xl border border-white/10 animate-spin" style={{ animationDuration: '3s' }}>
+                <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-blue-400" />
+              </div>
+            </div>
+            {/* 文字 */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-neutral-400">正在加载</span>
+              <span className="flex gap-0.5">
+                <span className="w-1 h-1 rounded-full bg-neutral-500 animate-bounce" style={{ animationDelay: '0s' }} />
+                <span className="w-1 h-1 rounded-full bg-neutral-500 animate-bounce" style={{ animationDelay: '0.15s' }} />
+                <span className="w-1 h-1 rounded-full bg-neutral-500 animate-bounce" style={{ animationDelay: '0.3s' }} />
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+// 包裹应用的主题Provider
+const AppWithTheme: React.FC = () => {
+  return (
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
+  );
+};
+export default AppWithTheme;

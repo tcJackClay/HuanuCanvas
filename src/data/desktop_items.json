@@ -1,0 +1,28 @@
+[
+  {
+    "id": "canvas-folder-canvas-1769493738894-f7lhul-1769493738922",
+    "type": "folder",
+    "name": "🎨 画布 1",
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "itemIds": [],
+    "color": "#3b82f6",
+    "createdAt": 1769493738922,
+    "updatedAt": 1769494472869
+  },
+  {
+    "id": "canvas-folder-canvas-1769493738899-0b2ibb-1769493738941",
+    "type": "folder",
+    "name": "🎨 画布 1",
+    "position": {
+      "x": 100,
+      "y": 0
+    },
+    "itemIds": [],
+    "color": "#3b82f6",
+    "createdAt": 1769493738941,
+    "updatedAt": 1769494472869
+  }
+]

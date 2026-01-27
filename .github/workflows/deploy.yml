@@ -1,0 +1,59 @@
+name: HuanuCanvas Deployment Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '部署环境'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - production
+
+jobs:
+  deploy-test:
+    name: 部署测试环境
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'test')
+    environment:
+      name: test
+      url: http://192.168.10.5:5206
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        
+      - name: 部署到测试服务器
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.TEST_HOST }}
+          username: ${{ secrets.TEST_USER }}
+          key: ${{ secrets.TEST_SSH_KEY }}
+          script: |
+            cd /opt/huanu-canvas
+            git pull origin develop
+            ./scripts/deploy-from-github.sh deploy test
+
+  deploy-production:
+    name: 部署生产环境
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    environment:
+      name: production
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        
+      - name: 部署到生产服务器
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/huanu-canvas
+            git pull origin main
+            ./scripts/deploy-from-github.sh deploy production

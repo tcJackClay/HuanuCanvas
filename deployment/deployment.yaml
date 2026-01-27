@@ -1,0 +1,218 @@
+# HuanuCanvas 项目部署配置
+# 版本: v1.4.1
+# 创建时间: 2026-01-27
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: huanu-config
+  namespace: default
+data:
+  # 应用基础配置
+  APP_NAME: "PenguinMagic"
+  APP_VERSION: "1.4.1"
+  APP_PORT: "5206"
+  BACKEND_PORT: "8765"
+  
+  # 环境配置
+  NODE_ENV: "production"
+  API_BASE_URL: "/api"
+  STATIC_FILES_PATH: "/files"
+  
+  # AI服务配置
+  GEMINI_API_KEY_PLACEHOLDER: "${GEMINI_API_KEY}"
+  AI_MODEL_VERSION: "gemini-1.5-pro"
+  
+  # 前端构建配置
+  BUILD_OUTPUT_DIR: "dist"
+  ASSETS_PATH: "assets"
+  
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: huanu-secrets
+  namespace: default
+type: Opaque
+stringData:
+  # API密钥 (需要外部注入)
+  GEMINI_API_KEY: ""
+  
+  # 数据库配置 (如需要)
+  DATABASE_URL: ""
+  
+  # SSL证书配置
+  SSL_CERT_PATH: ""
+  SSL_KEY_PATH: ""
+  
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: huanu-frontend
+  namespace: default
+  labels:
+    app: huanu-canvas
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: huanu-canvas
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: huanu-canvas
+        component: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: huanu-canvas:v1.4.1
+        ports:
+        - containerPort: 5206
+        env:
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: huanu-config
+              key: NODE_ENV
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: huanu-secrets
+              key: GEMINI_API_KEY
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5206
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5206
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: huanu-backend
+  namespace: default
+  labels:
+    app: huanu-canvas
+    component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: huanu-canvas
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: huanu-canvas
+        component: backend
+    spec:
+      containers:
+      - name: backend
+        image: huanu-backend:v1.4.1
+        ports:
+        - containerPort: 8765
+        env:
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: huanu-config
+              key: NODE_ENV
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: huanu-secrets
+              key: GEMINI_API_KEY
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        livenessProbe:
+          tcpSocket:
+            port: 8765
+          initialDelaySeconds: 30
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: huanu-frontend-service
+  namespace: default
+spec:
+  selector:
+    app: huanu-canvas
+    component: frontend
+  ports:
+  - name: http
+    port: 80
+    targetPort: 5206
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: huanu-backend-service
+  namespace: default
+spec:
+  selector:
+    app: huanu-canvas
+    component: backend
+  ports:
+  - name: http
+    port: 8765
+    targetPort: 8765
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: huanu-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - huanu.example.com
+    secretName: huanu-tls
+  rules:
+  - host: huanu.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: huanu-frontend-service
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: huanu-backend-service
+            port:
+              number: 8765
