@@ -1,0 +1,130 @@
+# CODEOWNERS - 代码所有者配置
+
+# 此文件定义了代码的审查责任
+# 详细文档: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# 全局规则 - 除非被更具体的规则覆盖
+# 所有未明确指定的文件需要至少1个审查者
+* @tcJackClay
+
+# 🔧 前端相关代码
+# React组件、样式、UI相关
+/src/components/ @tcJackClay @frontend-maintainer
+/src/pages/ @tcJackClay @frontend-maintainer
+/src/styles/ @tcJackClay @frontend-maintainer
+/src/assets/ @tcJackClay @frontend-maintainer
+*.tsx @tcJackClay @frontend-maintainer
+*.jsx @tcJackClay @frontend-maintainer
+*.css @tcJackClay @frontend-maintainer
+*.scss @tcJackClay @frontend-maintainer
+
+# 🎨 画布编辑器核心
+/src/canvas/ @tcJackClay @canvas-expert
+/src/flow/ @tcJackClay @canvas-expert
+/src/nodes/ @tcJackClay @canvas-expert
+/src/edges/ @tcJackClay @canvas-expert
+
+# 🤖 AI相关功能
+/src/ai/ @tcJackClay @ai-specialist
+/src/gemini/ @tcJackClay @ai-specialist
+/backend-nodejs/src/ai/ @tcJackClay @ai-specialist
+
+# 🔐 身份认证和权限
+/src/auth/ @tcJackClay @security-expert
+/src/permissions/ @tcJackClay @security-expert
+/src/login/ @tcJackClay @security-expert
+
+# ⚡ Electron应用
+/electron/ @tcJackClay @electron-expert
+*.cjs @tcJackClay @electron-expert
+*.mjs @tcJackClay @electron-expert
+
+# 🔧 后端API
+/backend-nodejs/src/ @tcJackClay @backend-maintainer
+/backend-nodejs/ @tcJackClay @backend-maintainer
+/api/ @tcJackClay @backend-maintainer
+*.js @tcJackClay @backend-maintainer
+
+# 📄 文档
+/docs/ @tcJackClay @docs-team
+*.md @tcJackClay @docs-team
+
+# 🧪 测试
+/test/ @tcJackClay @qa-team
+/tests/ @tcJackClay @qa-team
+*.test.* @tcJackClay @qa-team
+*.spec.* @tcJackClay @qa-team
+
+# 🔄 CI/CD配置
+/.github/workflows/ @tcJackClay @devops-team
+/ci-cd/ @tcJackClay @devops-team
+*.yml @tcJackClay @devops-team
+*.yaml @tcJackClay @devops-team
+
+# 🐳 Docker和部署
+/Dockerfile* @tcJackClay @devops-team
+/docker-compose* @tcJackClay @devops-team
+/deployment/ @tcJackClay @devops-team
+/kubernetes/ @tcJackClay @devops-team
+
+# 📦 包配置
+/package.json @tcJackClay
+/package-lock.json @tcJackClay
+/npm-shrinkwrap.json @tcJackClay
+/yarn.lock @tcJackClay
+
+# 🛠️ 构建和工具配置
+/vite.config.* @tcJackClay @frontend-maintainer
+/webpack.config.* @tcJackClay @frontend-maintainer
+/tsconfig.json @tcJackClay @backend-maintainer
+/babel.config.* @tcJackClay @backend-maintainer
+/.eslintrc* @tcJackClay @frontend-maintainer
+/.prettierrc* @tcJackClay @frontend-maintainer
+/jest.config.* @tcJackClay @qa-team
+
+# 🔒 安全配置
+/.env* @tcJackClay @security-expert
+/.gitignore @tcJackClay
+/.dockerignore @tcJackClay @devops-team
+
+# 🎯 特殊文件
+/README.md @tcJackClay @docs-team
+/CONTRIBUTING.md @tcJackClay @docs-team
+/LICENSE @tcJackClay
+
+# 📱 资源文件
+/resources/ @tcJackClay @design-team
+/assets/ @tcJackClay @design-team
+/public/ @tcJackClay @frontend-maintainer
+
+# 🔧 脚本文件
+/scripts/ @tcJackClay @devops-team
+/*.sh @tcJackClay @devops-team
+/*.ps1 @tcJackClay @devops-team
+/*.bat @tcJackClay @devops-team
+
+# ⚠️ 需要特别注意的文件
+# 这些文件需要多个审查者
+/src/config/ @tcJackClay @security-expert @backend-maintainer
+/src/database/ @tcJackClay @backend-maintainer @security-expert
+/backend-nodejs/config/ @tcJackClay @backend-maintainer @security-expert
+
+# 🔴 高风险变更 - 需要多个审查者
+/src/utils/security* @tcJackClay @security-expert @senior-developer
+/backend-nodejs/src/middleware/auth* @tcJackClay @security-expert @senior-developer
+/src/components/admin* @tcJackClay @security-expert @senior-developer
+
+# 🚀 发布相关
+/release-notes/ @tcJackClay @docs-team
+/changelog.md @tcJackClay @docs-team
+/version* @tcJackClay @maintainer-team
+
+# 📊 监控和日志
+/src/logging/ @tcJackClay @devops-team
+/src/monitoring/ @tcJackClay @devops-team
+/backend-nodejs/src/logging/ @tcJackClay @devops-team
+
+# 🌐 国际化
+/src/i18n/ @tcJackClay @frontend-maintainer @docs-team
+/src/locales/ @tcJackClay @frontend-maintainer @docs-team
+/translations/ @tcJackClay @frontend-maintainer @docs-team

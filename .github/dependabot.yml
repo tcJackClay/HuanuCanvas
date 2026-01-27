@@ -1,0 +1,101 @@
+version: 2
+updates:
+  # Node.js项目依赖更新
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    assignees:
+      - "tcJackClay"
+    reviewers:
+      - "tcJackClay"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    open-pull-requests-limit: 10
+    # 安全更新
+    security-updates:
+      enabled: true
+    # 标签
+    labels:
+      - "dependencies"
+      - "automated"
+    # 审查要求
+    review-after-updates: true
+    # 忽略某些依赖
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "electron"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions依赖更新
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+    assignees:
+      - "tcJackClay"
+    reviewers:
+      - "tcJackClay"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "automated"
+
+  # 后端Node.js依赖更新 (如果存在backend-nodejs目录)
+  - package-ecosystem: "npm"
+    directory: "/backend-nodejs"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    assignees:
+      - "tcJackClay"
+    reviewers:
+      - "tcJackClay"
+    commit-message:
+      prefix: "backend-deps"
+      prefix-development: "backend-deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "backend"
+      - "automated"
+
+  # Docker依赖更新 (如果存在Dockerfile)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+    assignees:
+      - "tcJackClay"
+    reviewers:
+      - "tcJackClay"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "docker"
+      - "automated"
+
+# 安全更新配置
+security:
+  # 立即处理安全漏洞
+  open-pull-requests-limit: 5
+  # 安全更新的审查要求
+  review-after-updates: true
+  # 安全更新自动合并条件
+  auto-merge:
+    security-updates: true
+    dependency-type: "direct"
+    update-type: "security"

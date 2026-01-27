@@ -1,0 +1,205 @@
+# CodeQL配置 - GitHub代码安全分析
+
+name: "CodeQL Security Analysis"
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - '**.yml'
+      - '**.yaml'
+      - 'docs/**'
+      - 'scripts/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - '**.yml'
+      - '**.yaml'
+      - 'docs/**'
+      - 'scripts/**'
+  schedule:
+    # 每周一凌晨2点运行
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze Code Security
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript', 'typescript' ]
+        # Node.js版本矩阵
+        node-version: [18, 20]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # 获取完整历史以进行代码分析
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        queries: security-extended,security-and-quality
+
+    # 设置Node.js环境
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    # 安装依赖并构建
+    - name: Install dependencies
+      run: |
+        npm ci
+        npm run build --if-present
+
+    # 自动构建 (对于解释型语言如JavaScript/TypeScript)
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    # 执行CodeQL分析
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}},node:${{matrix.node-version}}"
+
+    # 上传SARIF文件到GitHub Security
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: results.sarif
+
+  # JavaScript高级安全分析
+  advanced-javascript-analysis:
+    name: Advanced JS/TS Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Initialize CodeQL for Advanced JS
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript
+        queries: security-extended,security-and-quality,code-scanning/recommendations
+
+    - name: Setup Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm ci
+        npm run build --if-present
+
+    - name: Perform Advanced Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "advanced-javascript"
+
+  # TypeScript特定分析
+  typescript-security:
+    name: TypeScript Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL for TypeScript
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript
+        queries: security-extended,quality-and-security
+
+    - name: Setup Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install TypeScript dependencies
+      run: |
+        npm ci
+        npx tsc --noEmit
+
+    - name: Perform TypeScript Security Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "typescript-security"
+
+  # 生成安全报告
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [analyze, advanced-javascript-analysis, typescript-security]
+    if: always()
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download SARIF files
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: results.sarif
+
+    - name: Generate Security Summary
+      run: |
+        echo "# CodeQL Security Analysis Summary" > security-summary.md
+        echo "" >> security-summary.md
+        echo "## Analysis Date: $(date)" >> security-summary.md
+        echo "" >> security-summary.md
+        echo "## Matrix Results:" >> security-summary.md
+        echo "- Node.js 18 Analysis: ${{ needs.analyze.result }}" >> security-summary.md
+        echo "- Node.js 20 Analysis: ${{ needs.analyze.result }}" >> security-summary.md
+        echo "- Advanced JS Analysis: ${{ needs.advanced-javascript-analysis.result }}" >> security-summary.md
+        echo "- TypeScript Analysis: ${{ needs.typescript-security.result }}" >> security-summary.md
+        echo "" >> security-summary.md
+        echo "## Summary:" >> security-summary.md
+        if [[ "${{ needs.analyze.result }}" == "success" ]] && [[ "${{ needs.advanced-javascript-analysis.result }}" == "success" ]] && [[ "${{ needs.typescript-security.result }}" == "success" ]]; then
+          echo "✅ All security analyses completed successfully" >> security-summary.md
+          echo "✅ No critical security issues detected" >> security-summary.md
+        else
+          echo "⚠️ Some security analyses failed" >> security-summary.md
+          echo "Please check the detailed results in the Security tab" >> security-summary.md
+        fi
+
+    - name: Upload Security Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-report-${{ github.run_number }}
+        path: security-summary.md
+        retention-days: 90
