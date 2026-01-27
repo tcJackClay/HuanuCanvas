@@ -1,0 +1,184 @@
+# Docker 忽略文件
+# 避免不必要的文件被包含在Docker镜像中
+
+# 版本控制
+.git/
+.gitignore
+.gitattributes
+
+# 开发工具配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 依赖和缓存
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# 构建产物
+dist/
+build/
+release/
+*.tsbuildinfo
+
+# 测试和覆盖率
+coverage/
+.nyc_output/
+test-results/
+*.lcov
+
+# 日志文件
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# 运行时文件
+*.pid
+*.seed
+*.pid.lock
+.DS_Store
+Thumbs.db
+
+# 环境变量和敏感信息
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.staging.local
+.env.development
+.env.staging
+.env.production
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 上传和临时文件
+uploads/
+temp/
+tmp/
+.cache/
+
+# IDE和编辑器
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 操作系统
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 文档和说明
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+*.md
+
+# 部署相关 (会被Dockerfile单独处理)
+deployment/
+Dockerfile*
+docker-compose*
+.dockerignore
+Dockerfile
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# 外部服务配置
+.travis.yml
+.snyk
+.snyk
+*.snyk
+
+# 备份文件
+*.backup
+*.bak
+*.orig
+
+# 监控和调试
+prometheus-data/
+grafana-data/
+node_exporter/
+.monitoring/
+
+# 其他工具配置
+.eslintcache
+.stylelintcache
+.parcel-cache/
+
+# Electron相关 (开发时不需要)
+app-update.yml
+dev-app-update.yml
+
+# 调试和性能分析
+*.prof
+*.pprof
+*.trace
+
+# 本地开发文件
+.local/
+local/
+local-*
+
+# 临时脚本和工具
+tools/
+scripts/local/
+*.local.sh
+*.local.js
+
+# 开发数据库
+*.sql
+sql/
+database/
+
+# 证书和密钥 (生产环境单独管理)
+ssl/
+certs/
+keys/
+certificates/
+
+# 忽略构建时的临时文件
+.tmp/
+tmp/
+temp/
+
+# 忽略开发时的测试文件
+test-data/
+test-fixtures/
+*.test.*
+spec/
+*.spec.js
+*.spec.ts
+*.spec.jsx
+*.spec.tsx
