@@ -1,6 +1,6 @@
 # HuanuCanvas 🎨
 
-[![Deploy](https://github.com/yourusername/huanu-canvas/actions/workflows/deploy.yml/badge.svg)](https://github.com/yourusername/huanu-canvas/actions/workflows/deploy.yml)
+[![Deploy](https://github.com/tcJackClay/huanu-canvas/actions/workflows/deploy.yml/badge.svg)](https://github.com/tcJackClay/huanu-canvas/actions/workflows/deploy.yml)
 
 > HuanuCanvas 是一个现代化的AI驱动的Canvas设计应用，支持智能图像生成和创意管理。
 
@@ -21,7 +21,7 @@
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/yourusername/huanu-canvas.git
+   git clone https://github.com/tcJackClay/huanu-canvas.git
    cd huanu-canvas
    ```
 
