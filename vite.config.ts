@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import { readFileSync } from 'fs';
@@ -11,20 +10,6 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       base: './', // 使用相对路径，适用于 Electron
-=======
-import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
-import { readFileSync } from 'fs';
-
-// 从 package.json 读取版本号
-const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
-const APP_VERSION = packageJson.version;
-
-export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
-    return {
-      base: './', // 使用相对路径，适用于 Electron
->>>>>>> 75be0b1286bc4219ece9724b60912456c057eaed
       server: {
         port: 5206,
         strictPort: false,
@@ -48,7 +33,6 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
           },
         },
-<<<<<<< HEAD
       },
       build: {
         // Electron 渲染进程构建配置
@@ -71,28 +55,4 @@ export default defineConfig(({ mode }) => {
         }
       }
     };
-=======
-      },
-      build: {
-        // Electron 渲染进程构建配置
-        outDir: 'dist',
-        assetsDir: 'assets',
-        rollupOptions: {
-          output: {
-            manualChunks: undefined,
-          },
-        },
-      },
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        '__APP_VERSION__': JSON.stringify(APP_VERSION)
-      },
-      resolve: {
-        alias: {
-          '@': path.resolve('.'),
-        }
-      }
-    };
->>>>>>> 75be0b1286bc4219ece9724b60912456c057eaed
 });
