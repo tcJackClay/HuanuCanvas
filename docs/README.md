@@ -1,222 +1,121 @@
-# 企鹅工坊文档中心
+# HuanuCanvas 文档中心
 
-欢迎查阅企鹅工坊的技术文档！本目录包含项目的各类技术文档和指南。
-
----
-
-## 📚 文档索引
-
-### 核心文档
-
-| 文档 | 描述 | 状态 |
-|------|------|------|
-| [📊 项目执行总结](PROJECT_EXECUTION_SUMMARY.md) | 产品优化项目的完整执行报告，包含已完成工作、技术架构、文件清单等 | ✅ 最新 |
-| [📖 实现指南](IMPLEMENTATION_GUIDE.md) | 容器功能和图片操作功能的详细实现步骤，包含完整代码示例 | ✅ 最新 |
-
-### 根目录文档
-
-| 文档 | 描述 | 状态 |
-|------|------|------|
-| [📋 CHANGELOG.md](../CHANGELOG.md) | 版本变更历史记录，遵循 Keep a Changelog 格式 | ✅ 最新 |
-| [🤝 CONTRIBUTING.md](../CONTRIBUTING.md) | 开发者贡献指南，包含开发流程、代码规范、提交规范等 | ✅ 最新 |
-| [📖 README.md](../README.md) | 项目介绍和快速开始指南 | ✅ 已有 |
+欢迎查阅HuanuCanvas的技术文档！本目录包含项目的各类技术文档和指南。
 
 ---
 
-## 🎯 快速导航
+## 📚 **文档索引**
 
-### 我想...
+### **🚀 快速开始**
+
+| 文档 | 描述 | 状态 |
+|------|------|------|
+| [📋 快速开始指南](QUICK_START.md) | 新用户快速上手指南，包含基本命令和项目结构 | ✅ 最新 |
+| [🔧 依赖整合说明](DEPENDENCY_INTEGRATION.md) | 详细说明Monorepo依赖整合过程和优势 | ✅ 最新 |
+
+### **💡 开发指南**
+
+| 文档 | 描述 | 状态 | 目录 |
+|------|------|------|------|
+| [📖 实现指南](IMPLEMENTATION_GUIDE.md) | 容器功能和图片操作功能的详细实现步骤 | ✅ 最新 | 根目录 |
+| [📊 项目执行总结](PROJECT_EXECUTION_SUMMARY.md) | 产品优化项目的完整执行报告 | ✅ 最新 | 根目录 |
+| [📋 完整实现报告](IMPLEMENTATION_COMPLETE_REPORT.md) | 容器功能和图片操作功能的完整实现报告 | ✅ 最新 | 根目录 |
+
+### **🚀 快速开始**
+
+| 文档 | 描述 | 状态 | 目录 |
+|------|------|------|------|
+| [📋 快速开始指南](QUICK_START.md) | 新用户快速上手指南，包含基本命令和项目结构 | ✅ 最新 | 根目录 |
+| [🔧 依赖整合说明](DEPENDENCY_INTEGRATION.md) | 详细说明Monorepo依赖整合过程和优势 | ✅ 最新 | 根目录 |
+
+### **🔧 开发流程 (guides/)**
+
+| 文档 | 描述 | 状态 |
+|------|------|------|
+| [🤝 贡献指南](guides/CONTRIBUTING.md) | 开发者贡献指南，包含开发流程、代码规范等 | ✅ 最新 |
+| [🌳 GitFlow工作流](guides/GITFLOW_GUIDE.md) | Git分支管理策略和工作流程 | ✅ 最新 |
+| [📝 代码审查指南](guides/CODE_REVIEW_GUIDE.md) | 代码审查标准、流程和最佳实践 | ✅ 最新 |
+| [🛡️ 分支保护指南](guides/BRANCH_PROTECTION_GUIDE.md) | Git分支保护设置和安全策略 | ✅ 最新 |
+
+### **🔐 安全与合规 (policies/)**
+
+| 文档 | 描述 | 状态 |
+|------|------|------|
+| [🔒 安全策略](policies/SECURITY_POLICY.md) | 项目安全策略、漏洞报告流程 | ✅ 最新 |
+
+### **📈 项目管理 (references/)**
+
+| 文档 | 描述 | 状态 |
+|------|------|------|
+| [📋 变更日志模板](references/CHANGELOG_TEMPLATE.md) | 版本变更记录模板和格式规范 | ✅ 最新 |
+| [📡 API文档](API_DOCUMENTATION.md) | 完整的API接口文档和示例 | ✅ 最新 |
+
+### **🔬 技术专题**
+
+| 文档 | 描述 | 状态 |
+|------|------|------|
+| [🎨 RunningHubResultModal实现](RunningHubResultModal.md) | RunningHub结果模态框的技术实现细节 | ✅ 最新 |
+
+---
+
+## 🎯 **快速导航**
+
+### **我想...**
 
 **开始开发**
-- 👉 先阅读 [CONTRIBUTING.md](../CONTRIBUTING.md) 了解开发流程
-- 👉 查看 [PROJECT_EXECUTION_SUMMARY.md](PROJECT_EXECUTION_SUMMARY.md) 了解项目现状
+1. 查看 [快速开始指南](QUICK_START.md)
+2. 阅读 [贡献指南](guides/CONTRIBUTING.md)
+3. 配置开发环境
 
-**实现新功能**
-- 👉 容器分类功能：查看 [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) 第二阶段
-- 👉 图片操作功能：查看 [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) 第三阶段
+**了解架构**
+1. 查看 [项目执行总结](PROJECT_EXECUTION_SUMMARY.md)
+2. 阅读 [实现指南](IMPLEMENTATION_GUIDE.md)
+3. 查看 [API文档](API_DOCUMENTATION.md)
 
-**了解版本历史**
-- 👉 查看 [CHANGELOG.md](../CHANGELOG.md)
+**团队协作**
+1. 学习 [GitFlow工作流](guides/GITFLOW_GUIDE.md)
+2. 掌握 [代码审查流程](guides/CODE_REVIEW_GUIDE.md)
+3. 了解 [分支保护策略](guides/BRANCH_PROTECTION_GUIDE.md)
 
-**提交代码**
-- 👉 遵循 [CONTRIBUTING.md](../CONTRIBUTING.md) 中的提交规范
-
----
-
-## 📊 文档统计
-
-| 项目 | 数值 |
-|------|------|
-| 文档总数 | 5 |
-| 新增代码行数 | 1,125+ |
-| 实现指南步骤数 | 10 |
-| 测试检查项 | 14 |
+**项目维护**
+1. 使用 [变更日志模板](references/CHANGELOG_TEMPLATE.md)
+2. 遵循 [安全策略](policies/SECURITY_POLICY.md)
+3. 参考 [完整实现报告](IMPLEMENTATION_COMPLETE_REPORT.md)
 
 ---
 
-## 🔄 最近更新
+## 📋 **文档更新说明**
 
-### 2026-01-04
-- ✅ 创建项目执行总结文档
-- ✅ 创建详细实现指南文档
-- ✅ 创建 CHANGELOG.md 和 CONTRIBUTING.md
-- ✅ 优化版本控制和项目规范
+### **最新更新 (2026-01-28)**
+- ✅ 新增 [依赖整合说明](DEPENDENCY_INTEGRATION.md) - Monorepo架构说明
+- ✅ 新增 [快速开始指南](QUICK_START.md) - 新用户入门指南
+- ✅ 整理文档结构 - 统一文档分类和索引
 
----
-
-## 📝 文档维护
-
-### 如何更新文档
-
-1. **版本变更**
-   - 更新 `CHANGELOG.md`
-   - 使用 [语义化版本](https://semver.org/lang/zh-CN/) 规范
-
-2. **功能实现**
-   - 更新 `IMPLEMENTATION_GUIDE.md`
-   - 标记已完成的步骤
-
-3. **贡献流程**
-   - 如有新的开发规范，更新 `CONTRIBUTING.md`
-
-### 文档格式规范
-
-- 使用 Markdown 格式
-- 使用清晰的标题层级
-- 添加表格和列表增强可读性
-- 使用 Emoji 增加视觉效果（适度）
-- 中英文之间添加空格
+### **文档维护**
+- 📝 所有文档使用Markdown格式
+- 🔄 定期更新以保持准确性
+- 📊 文档状态标识：✅最新 / ⚠️需要更新 / ❌过时
 
 ---
 
-## 🤝 参与贡献
+## 🤝 **贡献文档**
 
-如果你发现文档有错误或需要改进，欢迎：
+欢迎为项目文档做出贡献！请参考 [贡献指南](CONTRIBUTING.md) 了解如何参与文档改进。
 
-1. 提交 Issue 说明问题
-2. 直接提交 Pull Request 修正
-3. 联系项目维护者
-
----
-
-## 📞 联系方式
-
-- **Q群**：854266067
-- **微信**：Lovexy_0222
-- **GitHub Issues**：提交技术问题
+### **文档改进建议**
+- 📝 改进现有文档的清晰度和准确性
+- ➕ 添加缺失的技术文档
+- 🔧 更新过时的信息
+- 🌐 改进文档结构和导航
 
 ---
 
-**文档中心维护者**：企鹅工坊团队  
-**最后更新**：2026-01-04
-# 企鹅工坊文档中心
+## 📞 **获取帮助**
 
-欢迎查阅企鹅工坊的技术文档！本目录包含项目的各类技术文档和指南。
-
----
-
-## 📚 文档索引
-
-### 核心文档
-
-| 文档 | 描述 | 状态 |
-|------|------|------|
-| [📊 项目执行总结](PROJECT_EXECUTION_SUMMARY.md) | 产品优化项目的完整执行报告，包含已完成工作、技术架构、文件清单等 | ✅ 最新 |
-| [📖 实现指南](IMPLEMENTATION_GUIDE.md) | 容器功能和图片操作功能的详细实现步骤，包含完整代码示例 | ✅ 最新 |
-
-### 根目录文档
-
-| 文档 | 描述 | 状态 |
-|------|------|------|
-| [📋 CHANGELOG.md](../CHANGELOG.md) | 版本变更历史记录，遵循 Keep a Changelog 格式 | ✅ 最新 |
-| [🤝 CONTRIBUTING.md](../CONTRIBUTING.md) | 开发者贡献指南，包含开发流程、代码规范、提交规范等 | ✅ 最新 |
-| [📖 README.md](../README.md) | 项目介绍和快速开始指南 | ✅ 已有 |
+- 💬 **技术问题**: 参考相关技术文档
+- 🐛 **文档问题**: 通过Issue报告文档错误
+- 💡 **改进建议**: 欢迎提交Pull Request
 
 ---
 
-## 🎯 快速导航
-
-### 我想...
-
-**开始开发**
-- 👉 先阅读 [CONTRIBUTING.md](../CONTRIBUTING.md) 了解开发流程
-- 👉 查看 [PROJECT_EXECUTION_SUMMARY.md](PROJECT_EXECUTION_SUMMARY.md) 了解项目现状
-
-**实现新功能**
-- 👉 容器分类功能：查看 [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) 第二阶段
-- 👉 图片操作功能：查看 [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) 第三阶段
-
-**了解版本历史**
-- 👉 查看 [CHANGELOG.md](../CHANGELOG.md)
-
-**提交代码**
-- 👉 遵循 [CONTRIBUTING.md](../CONTRIBUTING.md) 中的提交规范
-
----
-
-## 📊 文档统计
-
-| 项目 | 数值 |
-|------|------|
-| 文档总数 | 5 |
-| 新增代码行数 | 1,125+ |
-| 实现指南步骤数 | 10 |
-| 测试检查项 | 14 |
-
----
-
-## 🔄 最近更新
-
-### 2026-01-04
-- ✅ 创建项目执行总结文档
-- ✅ 创建详细实现指南文档
-- ✅ 创建 CHANGELOG.md 和 CONTRIBUTING.md
-- ✅ 优化版本控制和项目规范
-
----
-
-## 📝 文档维护
-
-### 如何更新文档
-
-1. **版本变更**
-   - 更新 `CHANGELOG.md`
-   - 使用 [语义化版本](https://semver.org/lang/zh-CN/) 规范
-
-2. **功能实现**
-   - 更新 `IMPLEMENTATION_GUIDE.md`
-   - 标记已完成的步骤
-
-3. **贡献流程**
-   - 如有新的开发规范，更新 `CONTRIBUTING.md`
-
-### 文档格式规范
-
-- 使用 Markdown 格式
-- 使用清晰的标题层级
-- 添加表格和列表增强可读性
-- 使用 Emoji 增加视觉效果（适度）
-- 中英文之间添加空格
-
----
-
-## 🤝 参与贡献
-
-如果你发现文档有错误或需要改进，欢迎：
-
-1. 提交 Issue 说明问题
-2. 直接提交 Pull Request 修正
-3. 联系项目维护者
-
----
-
-## 📞 联系方式
-
-- **Q群**：854266067
-- **微信**：Lovexy_0222
-- **GitHub Issues**：提交技术问题
-
----
-
-**文档中心维护者**：企鹅工坊团队  
-**最后更新**：2026-01-04
+*最后更新: 2026-01-28*

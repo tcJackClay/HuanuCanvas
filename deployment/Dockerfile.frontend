@@ -1,5 +1,5 @@
 # 前端构建和部署 Dockerfile
-FROM node:18-alpine as builder
+FROM node:21-alpine as builder
 
 # 设置工作目录
 WORKDIR /app

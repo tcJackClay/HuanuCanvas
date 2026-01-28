@@ -1,5 +1,5 @@
 # 后端API服务 Dockerfile
-FROM node:18-alpine
+FROM node:21-alpine
 
 # 安装 dumb-init 用于信号处理
 RUN apk add --no-cache dumb-init
