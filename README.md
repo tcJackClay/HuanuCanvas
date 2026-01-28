@@ -49,6 +49,7 @@ npm run electron:dev
 |---------|---------|-----------|
 | [📋 快速开始](docs/QUICK_START.md) | 新用户上手指南 | ⭐⭐⭐ |
 | [🔧 依赖整合说明](docs/DEPENDENCY_INTEGRATION.md) | Monorepo架构说明 | ⭐⭐⭐ |
+| [🔗 模块系统解决方案](docs/MODULE_SYSTEM_SOLUTION.md) | ES/CommonJS兼容性 | ⭐⭐⭐ |
 | [🤝 贡献指南](docs/CONTRIBUTING.md) | 开发流程和规范 | ⭐⭐ |
 | [📖 实现指南](docs/IMPLEMENTATION_GUIDE.md) | 技术实现细节 | ⭐⭐ |
 | [📡 API文档](docs/API_DOCUMENTATION.md) | 接口文档 | ⭐ |

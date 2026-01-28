@@ -27,6 +27,7 @@
 |------|------|------|------|
 | [📋 快速开始指南](QUICK_START.md) | 新用户快速上手指南，包含基本命令和项目结构 | ✅ 最新 | 根目录 |
 | [🔧 依赖整合说明](DEPENDENCY_INTEGRATION.md) | 详细说明Monorepo依赖整合过程和优势 | ✅ 最新 | 根目录 |
+| [🔗 模块系统解决方案](MODULE_SYSTEM_SOLUTION.md) | ES模块与CommonJS兼容性问题的完整解决方案 | ✅ 最新 | 根目录 |
 
 ### **🔧 开发流程 (guides/)**
 
@@ -64,8 +65,9 @@
 
 **开始开发**
 1. 查看 [快速开始指南](QUICK_START.md)
-2. 阅读 [贡献指南](guides/CONTRIBUTING.md)
-3. 配置开发环境
+2. 阅读 [模块系统解决方案](MODULE_SYSTEM_SOLUTION.md) - 如果遇到ES模块/CommonJS问题
+3. 阅读 [贡献指南](guides/CONTRIBUTING.md)
+4. 配置开发环境
 
 **了解架构**
 1. 查看 [项目执行总结](PROJECT_EXECUTION_SUMMARY.md)
