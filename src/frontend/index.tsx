@@ -2,6 +2,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './i18n/config';
+import './quick-fix.css'; // 快速修复CSS
+import './index.css';     // 主样式文件
 import App from './App';
 
 const rootElement = document.getElementById('root');

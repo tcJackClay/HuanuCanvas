@@ -2,6 +2,11 @@
    PenguinMagic UI - 现代暗色精致样式系统
    =========================================== */
 
+/* Tailwind CSS 指令 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* 基础重置和全局样式 */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -1049,4 +1054,59 @@ body {
   height: 20px;
   border-radius: 50%;
   pointer-events: all;
+}
+
+/* ===========================================
+   Tailwind CSS 组件样式
+   =========================================== */
+
+/* 玻璃效果组件 */
+@layer components {
+  .glass-panel {
+    @apply bg-white/5 border border-white/10 backdrop-blur-md rounded-lg;
+  }
+  
+  .glass-button {
+    @apply bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all duration-200 rounded-md;
+  }
+  
+  .ice-glow {
+    @apply shadow-[0_0_24px_rgba(59,130,246,0.2)];
+  }
+  
+  .spring-animation {
+    @apply animate-spring;
+  }
+  
+  /* 面板布局 */
+  .app-panel {
+    @apply h-full flex flex-col bg-background;
+  }
+  
+  .left-sidebar {
+    @apply w-64 bg-surface border-r border-subtle flex flex-col;
+  }
+  
+  .main-content {
+    @apply flex-1 flex flex-col bg-background;
+  }
+  
+  .right-sidebar {
+    @apply w-80 bg-surface border-l border-subtle flex flex-col;
+  }
+  
+  /* 按钮样式 */
+  .btn-primary {
+    @apply px-4 py-2 bg-ice-blue hover:bg-blue-600 text-white rounded-md transition-all duration-200 font-medium;
+  }
+  
+  .btn-secondary {
+    @apply px-4 py-2 bg-surface hover:bg-surface/80 border border-default text-white rounded-md transition-all duration-200;
+  }
+  
+  /* 输入框样式 */
+  .input-field {
+    @apply w-full px-3 py-2 bg-glass-bg border border-glass-border rounded-md text-white placeholder-gray-400 focus:border-ice-blue focus:ring-2 focus:ring-ice-blue/20 outline-none transition-all duration-200;
+  }
+}
 }
