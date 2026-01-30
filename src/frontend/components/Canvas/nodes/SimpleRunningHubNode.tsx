@@ -12,6 +12,7 @@ import { RunningHubUtils } from '../../../utils/runningHubUtils';
 import type {
   RunningHubConfig,
   RunningHubInput,
+  RunningHubOutput,
   TaskResult,
   TaskStatus
 } from '../../../types/runningHub';
@@ -26,38 +27,6 @@ interface RunningHubNodeData {
   result?: TaskResult;
   isConfigured: boolean;
   apiKey?: string;
-}
-
-interface RunningHubConfig {
-  nodeType: string;
-  parameters: Record<string, any>;
-  version?: string;
-}
-
-interface RunningHubInput {
-  fieldName: string;
-  fieldType: 'image' | 'text' | 'video' | 'file';
-  value: any;
-  label: string;
-  required: boolean;
-}
-
-interface RunningHubOutput {
-  fieldName: string;
-  fieldType: string;
-  label: string;
-}
-
-interface TaskStatus {
-  state: 'idle' | 'processing' | 'success' | 'error';
-  message: string;
-  progress: number;
-}
-
-interface TaskResult {
-  success: boolean;
-  data?: any;
-  error?: string;
 }
 
 const SimpleRunningHubNode: React.FC<NodeProps<RunningHubNodeData>> = ({ 
