@@ -457,7 +457,56 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
       // 根据API文档，正确的响应格式是：
       // { code: 0, msg: "success", data: { nodeInfoList: [...], covers: [...], webappName: "..." } }
       
-      if (data.code === 0 && data.data?.nodeInfoList) {
+      // 后端实际返回格式：{ success: true, hasNodes: true, nodeCount: number, data: result }
+      if (data.success && data.data) {
+        const actualData = data.data;
+        
+        if (actualData.code === 0 && actualData.data?.nodeInfoList) {
+          // 嵌套的API响应格式
+          nodeInfoList = actualData.data.nodeInfoList;
+          coversList = actualData.data.covers || [];
+          webappName = actualData.data.webappName;
+          console.log('[RunningHub] 使用后端实际返回的嵌套API响应格式:', {
+            nodeCount: nodeInfoList.length,
+            coversCount: coversList.length,
+            webappName
+          });
+        } else if (actualData.data?.nodeInfoList) {
+          // 双层嵌套格式
+          nodeInfoList = actualData.data.nodeInfoList;
+          coversList = actualData.data.covers || [];
+          webappName = actualData.data.webappName;
+          console.log('[RunningHub] 使用后端实际返回的双层嵌套格式:', {
+            nodeCount: nodeInfoList.length,
+            coversCount: coversList.length,
+            webappName
+          });
+        } else if (actualData.nodeInfoList) {
+          // 单层格式
+          nodeInfoList = actualData.nodeInfoList;
+          coversList = actualData.covers || [];
+          webappName = actualData.webappName;
+          console.log('[RunningHub] 使用后端实际返回的单层格式:', {
+            nodeCount: nodeInfoList.length,
+            coversCount: coversList.length,
+            webappName
+          });
+        } else if (Array.isArray(actualData)) {
+          // 直接数组格式
+          nodeInfoList = actualData;
+          console.log('[RunningHub] 使用后端实际返回的数组格式:', {
+            nodeCount: nodeInfoList.length
+          });
+        } else {
+          console.error('[RunningHub] 无法解析后端实际返回的API响应:', {
+            data: actualData,
+            keys: Object.keys(actualData),
+            hasData: !!actualData.data,
+            hasCode: 'code' in actualData,
+            hasNodeInfoList: !!actualData.nodeInfoList
+          });
+        }
+      } else if (data.code === 0 && data.data?.nodeInfoList) {
         // 正确的API响应格式
         nodeInfoList = data.data.nodeInfoList;
         coversList = data.data.covers || [];
