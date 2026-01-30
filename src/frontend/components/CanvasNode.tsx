@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
-import { CanvasNode, NodeType, getNodeTypeColor } from '@/src/frontend/services/types/pebblingTypes';
+import { CanvasNode, NodeType, getNodeTypeColor } from '@/services/types/pebblingTypes';
 import { Icons } from './Icons';
 import { ChevronDown, Check, X, Loader2, File } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';

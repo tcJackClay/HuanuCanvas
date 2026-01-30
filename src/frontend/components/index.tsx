@@ -1,14 +1,14 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { CanvasNode, Vec2, NodeType, Connection, GenerationConfig, NodeData, CanvasPreset, PresetInput } from '@/src/frontend/services/types/pebblingTypes';
+import { CanvasNode, Vec2, NodeType, Connection, GenerationConfig, NodeData, CanvasPreset, PresetInput } from '@/services/types/pebblingTypes';
 import { CreativeIdea } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
 import FloatingInput from './FloatingInput';
 import CanvasNodeItem from './CanvasNode';
 import Sidebar from './Sidebar';
 import ContextMenu from './ContextMenu';
-import PresetCreationModal from '@/src/frontend/components/Modals/PresetCreationModal';
-import PresetInstantiationModal from '@/src/frontend/components/Modals/PresetInstantiationModal';
+import PresetCreationModal from '@/components/Modals/PresetCreationModal';
+import PresetInstantiationModal from '@/components/Modals/PresetInstantiationModal';
 import CanvasNameBadge from './CanvasNameBadge';
 import { editImageWithGemini, chatWithThirdPartyApi, getThirdPartyConfig, ImageEditConfig } from '../services/ai/geminiService';
 import * as canvasApi from '../services/original-services/api/canvas';

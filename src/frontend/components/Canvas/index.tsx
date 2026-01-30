@@ -34,7 +34,12 @@ import PromptNode from './nodes/PromptNode';
 import TextNode from './nodes/TextNode';
 import SaveImageNode from './nodes/SaveImageNode';
 import MultiAngleNode from './nodes/MultiAngleNode';
-import RunningHubNode from './nodes/RunningHubNode';
+// import RunningHubNode from './nodes/RunningHubNode';
+import RunningHubMigrationWrapper from './nodes/RunningHubMigrationWrapper';
+
+// RunningHub功能面板组件
+import RunningHubFunctionsPanel from '../RunningHubFunctionsPanel';
+import type { RunningHubFunction } from '../../../shared/types';
 
 // 节点类型定义
 export type CanvasNodeType = 'creative' | 'image' | 'prompt' | 'text' | 'saveImage' | 'multiAngle' | 'runninghub';
@@ -53,6 +58,18 @@ export interface CanvasNodeData {
   promptText?: string;
   // 文本节点
   text?: string;
+  // RunningHub节点 (新架构支持)
+  config?: any;
+  inputs?: any[];
+  outputs?: any[];
+  status?: any;
+  result?: any;
+  isConfigured?: boolean;
+  apiKey?: string;
+  webappId?: string;
+  inputFields?: any[];
+  onOpenConfig?: () => void;
+  onTaskComplete?: (output: any) => void;
   // 通用
   onDelete?: (id: string) => void;
   onEdit?: (id: string, data: Partial<CanvasNodeData>) => void;
@@ -66,7 +83,7 @@ const nodeTypes: NodeTypes = {
   text: TextNode,
   saveImage: SaveImageNode,
   multiAngle: MultiAngleNode,
-  runninghub: RunningHubNode,
+  runninghub: RunningHubMigrationWrapper,
 };
 
 // 自定义可删除边组件
@@ -171,6 +188,9 @@ export const Canvas: React.FC<CanvasProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingImageNodeId = useRef<string | null>(null);
   const isInitializedRef = useRef(false);
+
+  // RunningHub功能面板状态
+  const [isFunctionsPanelVisible, setIsFunctionsPanelVisible] = useState(false);
 
   // 从 localStorage 加载工作流
   useEffect(() => {
@@ -747,6 +767,40 @@ export const Canvas: React.FC<CanvasProps> = ({
     onPaneClick?.(); // 通知外层收起左右面板
   }, [onPaneClick]);
 
+  // 处理RunningHub功能选择
+  const handleRunningHubFunctionSelect = useCallback((func: RunningHubFunction) => {
+    console.log('[Canvas] 选择RunningHub功能:', func.name, func.webappId);
+    
+    // 创建新的RunningHub节点
+    const newNode: Node<CanvasNodeData> = {
+      id: `runninghub-${Date.now()}`,
+      type: 'runninghub',
+      position: { 
+        x: 200 + Math.random() * 300, 
+        y: 200 + Math.random() * 200 
+      },
+      data: {
+        label: func.name,
+        type: 'runninghub',
+        webappId: func.webappId,
+        // 暂时使用空的apiKey，稍后可以从配置获取
+        apiKey: '',
+        inputFields: [],
+        onDelete: handleDeleteNode,
+        onEdit: handleEditNode,
+        onOpenConfig: () => {
+          console.log('[Canvas] 打开RunningHub配置');
+        },
+        onTaskComplete: (output: any) => {
+          console.log('[Canvas] RunningHub任务完成:', output);
+        },
+      },
+    };
+    
+    setNodes((nds) => [...nds, newNode]);
+    console.log('[Canvas] 已创建RunningHub节点:', newNode.id);
+  }, [setNodes, handleDeleteNode, handleEditNode]);
+
   return (
     <div className="w-full h-full relative" style={{ backgroundColor: theme.colors.bgPrimary }}>
       {/* 隐藏的文件输入 */}
@@ -880,6 +934,15 @@ export const Canvas: React.FC<CanvasProps> = ({
               <span>保存图片</span>
             </button>
 
+            {/* RUNNINGHUB功能按钮 */}
+            <button
+              onClick={() => setIsFunctionsPanelVisible(true)}
+              className="w-full px-4 py-2.5 text-sm font-medium rounded-xl bg-gradient-to-r from-orange-500/20 to-orange-600/20 border border-orange-500/30 text-orange-300 hover:from-orange-500/30 hover:to-orange-600/30 transition-all flex items-center gap-3"
+            >
+              <span className="text-lg">🚀</span>
+              <span>RUNNINGHUB</span>
+            </button>
+
             <div className="h-px bg-white/10 my-2" />
 
             {/* 进度显示 */}
@@ -1005,6 +1068,13 @@ export const Canvas: React.FC<CanvasProps> = ({
           color={theme.colors.border}
         />
       </ReactFlow>
+
+      {/* RunningHub功能面板 */}
+      <RunningHubFunctionsPanel
+        isVisible={isFunctionsPanelVisible}
+        onClose={() => setIsFunctionsPanelVisible(false)}
+        onSelectFunction={handleRunningHubFunctionSelect}
+      />
     </div>
   );
 };

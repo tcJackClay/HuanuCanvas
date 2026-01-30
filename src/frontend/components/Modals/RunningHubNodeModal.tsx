@@ -1,14 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RunningHubNode, RunningHubCover } from '../../types/pebblingTypes';
 import { useTheme } from '../../contexts/ThemeContext';
+import { configService } from '../../services/configService';
 import { X, Upload, Play, RefreshCw, Check, AlertCircle, Image, Music, Video, File, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+
+interface RunningHubFunction {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  webappId: string;
+  category: string;
+  description: string;
+  defaultInputs: Record<string, any>;
+}
 
 interface RunningHubNodeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  webappId: string;
   apiKey: string;
-  onSubmit?: (nodeInfoList2: RunningHubNode[]) => void;
+  onSubmit?: (nodeInfoList2: RunningHubNode[], selectedFunction: RunningHubFunction) => void;
 }
 
 type TaskStatus = 'idle' | 'running' | 'success' | 'failed';
@@ -27,7 +38,6 @@ interface TaskResult {
 const RunningHubNodeModal: React.FC<RunningHubNodeModalProps> = ({
   isOpen,
   onClose,
-  webappId,
   apiKey,
   onSubmit
 }) => {
@@ -42,12 +52,59 @@ const RunningHubNodeModal: React.FC<RunningHubNodeModalProps> = ({
   const [taskResult, setTaskResult] = useState<TaskResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedCovers, setExpandedCovers] = useState<boolean>(true);
+  
+  // 功能选择相关状态
+  const [availableFunctions, setAvailableFunctions] = useState<RunningHubFunction[]>([]);
+  const [selectedFunction, setSelectedFunction] = useState<RunningHubFunction | null>(null);
+  const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 加载可用的RunningHub功能列表
+  const loadAvailableFunctions = async () => {
+    try {
+      setIsLoadingFunctions(true);
+      const functions = configService.getRunningHubFunctions();
+      console.log('[RunningHubNodeModal] 加载功能列表:', functions);
+      setAvailableFunctions(functions);
+      
+      // 自动选择第一个功能
+      if (functions.length > 0 && !selectedFunction) {
+        setSelectedFunction(functions[0]);
+      }
+    } catch (error) {
+      console.error('[RunningHubNodeModal] 加载功能列表失败:', error);
+      setError('加载功能列表失败');
+    } finally {
+      setIsLoadingFunctions(false);
+    }
+  };
+
+  // 处理功能选择变化
+  const handleFunctionChange = (functionId: string) => {
+    const functionObj = availableFunctions.find(f => f.id === functionId);
+    if (functionObj) {
+      setSelectedFunction(functionObj);
+      // 清空之前的数据
+      setNodes([]);
+      setCovers([]);
+      setError(null);
+      setTaskResult(null);
+      console.log('[RunningHubNodeModal] 选择功能:', functionObj.name, 'webappId:', functionObj.webappId);
+    }
+  };
+
+  // 初始化加载功能列表
   useEffect(() => {
-    if (isOpen && webappId && apiKey) {
+    if (isOpen) {
+      loadAvailableFunctions();
+    }
+  }, [isOpen]);
+
+  // 当功能选择改变时，重新获取节点信息
+  useEffect(() => {
+    if (isOpen && selectedFunction && apiKey) {
       fetchNodeInfo();
     }
     return () => {
@@ -55,17 +112,25 @@ const RunningHubNodeModal: React.FC<RunningHubNodeModalProps> = ({
         clearInterval(pollingIntervalRef.current);
       }
     };
-  }, [isOpen, webappId, apiKey]);
+  }, [isOpen, selectedFunction, apiKey]);
 
   const fetchNodeInfo = async () => {
+    if (!selectedFunction) {
+      setError('请先选择功能');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
-      console.log('[RunningHubNodeModal] 开始获取节点信息, webappId:', webappId);
+      console.log('[RunningHubNodeModal] 开始获取节点信息, 功能:', selectedFunction.name, 'webappId:', selectedFunction.webappId);
       const response = await fetch('/api/runninghub/node-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ webappId, apiKey })
+        body: JSON.stringify({ 
+          webappId: selectedFunction.webappId, 
+          apiKey: apiKey 
+        })
       });
       const data = await response.json();
       console.log('[RunningHubNodeModal] API响应:', JSON.stringify(data, null, 2));
@@ -168,6 +233,11 @@ const RunningHubNodeModal: React.FC<RunningHubNodeModalProps> = ({
   };
 
   const handleSubmitTask = async () => {
+    if (!selectedFunction) {
+      setError('请先选择功能');
+      return;
+    }
+
     setIsSubmitting(true);
     setTaskStatus('running');
     setError(null);
@@ -180,16 +250,18 @@ const RunningHubNodeModal: React.FC<RunningHubNodeModalProps> = ({
     }));
 
     try {
+      console.log('[RunningHubNodeModal] 提交任务, 功能:', selectedFunction.name, 'webappId:', selectedFunction.webappId);
       const response = await fetch('/api/runninghub/submit-task', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          webappId,
+          webappId: selectedFunction.webappId,
           nodeInfoList2,
           apiKey
         })
       });
       const data = await response.json();
+      console.log('[RunningHubNodeModal] 提交任务响应:', data);
 
       if (data.success && data.data?.taskId) {
         pollTaskStatus(data.data.taskId);
@@ -222,6 +294,11 @@ const RunningHubNodeModal: React.FC<RunningHubNodeModalProps> = ({
           setTaskResult({ status: 'success', output: data.data });
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
+          }
+          // 任务成功后调用onSubmit回调，传递节点信息和选中的功能
+          if (onSubmit && selectedFunction) {
+            console.log('[RunningHubNodeModal] 任务成功，调用onSubmit回调');
+            onSubmit(nodes, selectedFunction);
           }
         } else if (data.status === 'failed') {
           setTaskStatus('failed');
@@ -403,6 +480,56 @@ const RunningHubNodeModal: React.FC<RunningHubNodeModalProps> = ({
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* 功能选择器 */}
+        <div className="mx-6 mt-4">
+          <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.textPrimary }}>
+            选择功能
+          </label>
+          {isLoadingFunctions ? (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: theme.colors.bgTertiary }}>
+              <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#f59e0b' }} />
+              <span className="text-sm" style={{ color: theme.colors.textSecondary }}>加载功能列表...</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <select
+                value={selectedFunction?.id || ''}
+                onChange={(e) => handleFunctionChange(e.target.value)}
+                className="w-full px-3 py-2 pr-8 rounded-lg text-sm outline-none appearance-none"
+                style={{
+                  backgroundColor: theme.colors.bgTertiary,
+                  color: theme.colors.textPrimary,
+                  borderColor: theme.colors.border,
+                  border: `1px solid ${theme.colors.border}`
+                }}
+              >
+                <option value="">请选择RunningHub功能</option>
+                {availableFunctions.map((func) => (
+                  <option key={func.id} value={func.id}>
+                    {func.icon} {func.name} ({func.category})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: theme.colors.textMuted }} />
+            </div>
+          )}
+          {selectedFunction && (
+            <div className="mt-2 p-3 rounded-lg" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <div className="flex items-center gap-2">
+                <span className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                  <strong>功能:</strong> {selectedFunction.name}
+                </span>
+                <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: selectedFunction.color + '20', color: selectedFunction.color }}>
+                  {selectedFunction.category}
+                </span>
+              </div>
+              <p className="text-xs mt-1" style={{ color: theme.colors.textMuted }}>
+                {selectedFunction.description}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* 错误提示 */}

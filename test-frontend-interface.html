@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RunningHub 功能测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
+        .test-result { margin: 10px 0; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 4px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .json-display { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 RunningHub 功能测试</h1>
+            <p>验证修复后的RunningHub功能是否正常工作</p>
+        </div>
+
+        <div class="test-section">
+            <h2>📡 API连接测试</h2>
+            <button onclick="testAPIs()">测试所有API</button>
+            <div id="api-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 节点信息测试</h2>
+            <button onclick="testNodeInfo()">测试节点信息</button>
+            <div id="node-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 完整流程测试</h2>
+            <button onclick="testFullFlow()">测试完整流程</button>
+            <div id="flow-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 测试结果总结</h2>
+            <div id="summary"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5206/api/runninghub';
+        let testResults = [];
+
+        function log(message, type = 'info') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            return { message, type, timestamp: new Date().toISOString() };
+        }
+
+        async function testAPIs() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<div class="status info">正在测试API连接...</div>';
+
+            const results = [];
+
+            try {
+                // 测试功能列表API
+                const functionsResponse = await fetch(`${API_BASE}/functions`);
+                const functionsData = await functionsResponse.json();
+                results.push(log(`功能列表API: ${functionsData.success ? '✅ 成功' : '❌ 失败'} - 找到 ${functionsData.count} 个功能`));
+                
+                if (functionsData.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="status success">✅ 功能列表API测试成功</div>
+                        <div class="test-result">找到 ${functionsData.count} 个RunningHub功能:</div>
+                        <div class="json-display">${JSON.stringify(functionsData.data.map(f => ({
+                            id: f.id,
+                            name: f.name,
+                            category: f.category
+                        })), null, 2)}</div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="status error">❌ 功能列表API测试失败</div>`;
+                }
+
+                // 测试配置API
+                const configResponse = await fetch(`${API_BASE}/config`);
+                const configData = await configResponse.json();
+                results.push(log(`配置API: ${configData.configured ? '✅ 已配置' : '❌ 未配置'}`));
+                
+            } catch (error) {
+                results.push(log(`API测试失败: ${error.message}`, 'error'));
+                resultsDiv.innerHTML = `<div class="status error">❌ API测试失败: ${error.message}</div>`;
+            }
+
+            testResults.push(...results);
+            updateSummary();
+        }
+
+        async function testNodeInfo() {
+            const resultsDiv = document.getElementById('node-results');
+            resultsDiv.innerHTML = '<div class="status info">正在测试节点信息获取...</div>';
+
+            const results = [];
+
+            try {
+                // 使用图片放大功能的webappId进行测试
+                const response = await fetch(`${API_BASE}/node-info`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ webappId: '2007596875607707650' })
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.hasNodes) {
+                    results.push(log(`节点信息获取: ✅ 成功 - 找到 ${data.nodeCount} 个节点`));
+                    
+                    resultsDiv.innerHTML = `
+                        <div class="status success">✅ 节点信息获取测试成功</div>
+                        <div class="test-result">
+                            <strong>应用名称:</strong> ${data.data.data.webappName}<br>
+                            <strong>节点数量:</strong> ${data.nodeCount}<br>
+                            <strong>封面数量:</strong> ${data.data.data.covers?.length || 0}
+                        </div>
+                        <div class="json-display">
+                            <strong>节点信息:</strong><br>
+                            ${JSON.stringify(data.data.data.nodeInfoList.map(n => ({
+                                nodeId: n.nodeId,
+                                nodeName: n.nodeName,
+                                fieldType: n.fieldType,
+                                fieldName: n.fieldName
+                            })), null, 2)}
+                        </div>
+                    `;
+                } else {
+                    results.push(log(`节点信息获取: ❌ 失败`, 'error'));
+                    resultsDiv.innerHTML = `<div class="status error">❌ 节点信息获取测试失败</div>`;
+                }
+
+            } catch (error) {
+                results.push(log(`节点信息测试失败: ${error.message}`, 'error'));
+                resultsDiv.innerHTML = `<div class="status error">❌ 节点信息测试失败: ${error.message}</div>`;
+            }
+
+            testResults.push(...results);
+            updateSummary();
+        }
+
+        async function testFullFlow() {
+            const resultsDiv = document.getElementById('flow-results');
+            resultsDiv.innerHTML = '<div class="status info">正在测试完整流程...</div>';
+
+            const results = [];
+
+            try {
+                // 模拟完整的前端流程
+                results.push(log('开始完整流程测试...'));
+                
+                // 1. 获取功能列表
+                const functionsResponse = await fetch(`${API_BASE}/functions`);
+                const functionsData = await functionsResponse.json();
+                
+                if (!functionsData.success) {
+                    throw new Error('无法获取功能列表');
+                }
+                
+                results.push(log(`✅ 步骤1: 获取功能列表 - ${functionsData.count} 个功能`));
+
+                // 2. 选择第一个功能并获取节点信息
+                const firstFunction = functionsData.data[0];
+                const nodeInfoResponse = await fetch(`${API_BASE}/node-info`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ webappId: firstFunction.webappId })
+                });
+
+                const nodeInfoData = await nodeInfoResponse.json();
+                
+                if (!nodeInfoData.success) {
+                    throw new Error('无法获取节点信息');
+                }
+
+                results.push(log(`✅ 步骤2: 获取节点信息 - ${nodeInfoData.nodeCount} 个节点`));
+
+                // 3. 验证数据结构
+                const hasConfigurableNodes = nodeInfoData.data.data.nodeInfoList.some(n => 
+                    n.fieldType === 'STRING' || n.fieldType === 'LIST'
+                );
+                
+                const hasImageNodes = nodeInfoData.data.data.nodeInfoList.some(n => 
+                    n.fieldType === 'IMAGE'
+                );
+
+                results.push(log(`✅ 步骤3: 验证配置选项 - 可配置: ${hasConfigurableNodes ? '是' : '否'}, 文件上传: ${hasImageNodes ? '是' : '否'}`));
+
+                // 4. 验证界面渲染数据
+                if (hasConfigurableNodes || hasImageNodes) {
+                    results.push(log(`✅ 步骤4: 界面渲染数据完整 - 前端应该能正常显示配置选项`));
+                    
+                    resultsDiv.innerHTML = `
+                        <div class="status success">✅ 完整流程测试成功</div>
+                        <div class="test-result">
+                            <strong>测试流程:</strong><br>
+                            ✅ 1. 获取功能列表 - 成功<br>
+                            ✅ 2. 获取节点信息 - 成功<br>
+                            ✅ 3. 验证配置选项 - 成功<br>
+                            ✅ 4. 验证界面渲染 - 成功<br><br>
+                            <strong>结论:</strong> 所有测试通过，前端应该能够正常显示配置选项，不再显示"暂无配置选项"
+                        </div>
+                    `;
+                } else {
+                    results.push(log('⚠️ 步骤4: 没有找到配置选项', 'warning'));
+                    resultsDiv.innerHTML = `<div class="status info">⚠️ 完整流程测试完成，但没有找到可配置选项</div>`;
+                }
+
+            } catch (error) {
+                results.push(log(`完整流程测试失败: ${error.message}`, 'error'));
+                resultsDiv.innerHTML = `<div class="status error">❌ 完整流程测试失败: ${error.message}</div>`;
+            }
+
+            testResults.push(...results);
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const summaryDiv = document.getElementById('summary');
+            const totalTests = testResults.length;
+            const successTests = testResults.filter(r => !r.message.includes('❌')).length;
+            const successRate = Math.round((successTests / totalTests) * 100);
+
+            const summary = `
+                <div class="test-result">
+                    <strong>测试统计:</strong><br>
+                    总测试数: ${totalTests}<br>
+                    成功测试: ${successTests}<br>
+                    成功率: ${successRate}%<br><br>
+                    <strong>修复验证:</strong><br>
+                    ${successRate >= 80 ? 
+                        '🎉 <span style="color: green; font-weight: bold;">修复成功！</span> - 前端应该能正常显示配置选项' : 
+                        '⚠️ <span style="color: orange; font-weight: bold;">需要进一步调试</span>'
+                    }
+                </div>
+            `;
+
+            summaryDiv.innerHTML = summary;
+        }
+
+        // 页面加载时自动运行基本测试
+        window.onload = function() {
+            setTimeout(() => {
+                testAPIs();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

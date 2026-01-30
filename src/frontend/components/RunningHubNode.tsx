@@ -3,8 +3,8 @@ import { Handle, Position, NodeProps } from '@xyflow/react';
 import type { CanvasNodeData } from '../index';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { X, Upload, Play, RefreshCw, Check, AlertCircle, Image, Music, Video, File, ChevronDown, ChevronUp, Settings, Loader2 } from 'lucide-react';
-import type { RunningHubNode, RunningHubCover, NodeType } from '@/src/shared/types/pebblingTypes';
-import { getNodeTypeColor } from '@/src/shared/types/pebblingTypes';
+import type { RunningHubNode, RunningHubCover, NodeType } from '@/shared/types/pebblingTypes';
+import { getNodeTypeColor } from '@/shared/types/pebblingTypes';
 import RunningHubResultModal from '../../RunningHubResultModal';
 
 interface RunningHubCanvasNodeData extends CanvasNodeData {

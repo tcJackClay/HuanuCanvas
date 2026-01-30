@@ -6,7 +6,7 @@ import { CREATIVE_CATEGORIES } from '../../shared/types';
 import { PlusCircle as PlusCircleIcon, Trash2 as TrashIcon, Library as LibraryIcon, Edit as EditIcon, Download as UploadIcon, Upload as DownloadIcon, TrendingUp, Clipboard, Check, Star, Search as SearchIconLucide, FolderOpen, Layers, Sparkles, Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { normalizeImageUrl } from '../utils/image';
-import { ImportCreativeModal } from '@/src/frontend/components/Modals/ImportCreativeModal';
+import { ImportCreativeModal } from '@/components/Modals/ImportCreativeModal';
 import { autoClassifyCreative } from '../services/ai/geminiService';
 
 

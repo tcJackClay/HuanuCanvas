@@ -17,113 +17,16 @@
     ],
     "connections": [],
     "createdAt": 1769493738894,
-    "updatedAt": 1769494494710,
+    "updatedAt": 1769668967294,
     "thumbnail": null
   },
   {
     "id": "canvas-1769493738899-0b2ibb",
     "name": "画布 1",
-    "nodes": [
-      {
-        "id": "jd1tg9bch",
-        "type": "runninghub",
-        "content": "",
-        "x": 260,
-        "y": 282.5,
-        "width": 300,
-        "height": 200,
-        "data": {
-          "webappId": "2015061306050617345",
-          "apiKey": "5d9bcfcdde79473ab2fb0f4819d2652d",
-          "inputFields": [
-            {
-              "nodeId": "183",
-              "nodeName": "Text",
-              "fieldName": "text",
-              "fieldValue": "电影名：《七王国的骑士 第一季 》 \n英文名：a knight seven kingdoms\n发布日期：2026年1月08日\n电影类型: 剧情 / 动作 / 奇幻 / 冒险\n\n帮我设计一张电影海报.",
-              "fieldData": "[\"STRING\", {\"multiline\": true}]",
-              "fieldType": "STRING",
-              "description": "文本编辑",
-              "descriptionCn": null,
-              "descriptionEn": "Text editing"
-            },
-            {
-              "nodeId": "217",
-              "nodeName": "ImpactSwitch",
-              "fieldName": "select",
-              "fieldValue": "1",
-              "fieldData": "[{\"name\":\"input2\",\"index\":2.0,\"description\":\"选择图像比例   4:3\",\"fastIndex\":2.0,\"descriptionEn\":\"Select image aspect ratio 4:3\"},{\"name\":\"input1\",\"index\":1.0,\"description\":\"选择图像比例  3:4\",\"fastIndex\":1.0,\"descriptionEn\":\"Select image ratio 3:4\"}]",
-              "fieldType": "SWITCH",
-              "description": "分辨率切换",
-              "descriptionCn": null,
-              "descriptionEn": "Resolution switch"
-            }
-          ],
-          "covers": [
-            {
-              "id": "2015064705320095745",
-              "objName": "fcc4dc84180788dce3575c538ca856e2/2026-01-24/b519505a88f30eb96a1a7b2b42fdebf6.gif",
-              "url": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/b519505a88f30eb96a1a7b2b42fdebf6.gif",
-              "thumbnailUri": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/b519505a88f30eb96a1a7b2b42fdebf6.gif?imageMogr2/format/webp/ignore-error/1",
-              "imageWidth": "640",
-              "imageHeight": "854"
-            },
-            {
-              "id": "2015064705324290050",
-              "objName": "fcc4dc84180788dce3575c538ca856e2/2026-01-24/0488e95248aa12704c0ad348e5ecac4b.png",
-              "url": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/0488e95248aa12704c0ad348e5ecac4b.png",
-              "thumbnailUri": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/0488e95248aa12704c0ad348e5ecac4b.png?imageMogr2/format/jpg/ignore-error/1",
-              "imageWidth": "1024",
-              "imageHeight": "1536"
-            },
-            {
-              "id": "2015064705324290051",
-              "objName": "fcc4dc84180788dce3575c538ca856e2/2026-01-24/ac47f5218b0eb66aaead1163250a953d.png",
-              "url": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/ac47f5218b0eb66aaead1163250a953d.png",
-              "thumbnailUri": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/ac47f5218b0eb66aaead1163250a953d.png?imageMogr2/format/jpg/ignore-error/1",
-              "imageWidth": "1024",
-              "imageHeight": "1536"
-            },
-            {
-              "id": "2015064705324290052",
-              "objName": "fcc4dc84180788dce3575c538ca856e2/2026-01-24/476c01c0b41b24a26206fed82a598f2f.png",
-              "url": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/476c01c0b41b24a26206fed82a598f2f.png",
-              "thumbnailUri": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/476c01c0b41b24a26206fed82a598f2f.png?imageMogr2/format/jpg/ignore-error/1",
-              "imageWidth": "1024",
-              "imageHeight": "1536"
-            },
-            {
-              "id": "2015064705324290053",
-              "objName": "fcc4dc84180788dce3575c538ca856e2/2026-01-24/8a62be2881fb1f96a90af1b210685869.png",
-              "url": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/8a62be2881fb1f96a90af1b210685869.png",
-              "thumbnailUri": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/8a62be2881fb1f96a90af1b210685869.png?imageMogr2/format/jpg/ignore-error/1",
-              "imageWidth": "1024",
-              "imageHeight": "1536"
-            },
-            {
-              "id": "2015064705324290054",
-              "objName": "fcc4dc84180788dce3575c538ca856e2/2026-01-24/4dae203cdb78804ae8203d4e98ac0f06.png",
-              "url": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/4dae203cdb78804ae8203d4e98ac0f06.png",
-              "thumbnailUri": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/4dae203cdb78804ae8203d4e98ac0f06.png?imageMogr2/format/jpg/ignore-error/1",
-              "imageWidth": "1024",
-              "imageHeight": "1536"
-            },
-            {
-              "id": "2015064705324290055",
-              "objName": "fcc4dc84180788dce3575c538ca856e2/2026-01-24/13108f102fc784eed1c52737a26bb322.png",
-              "url": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/13108f102fc784eed1c52737a26bb322.png",
-              "thumbnailUri": "https://rh-images.xiaoyaoyou.com/fcc4dc84180788dce3575c538ca856e2/2026-01-24/13108f102fc784eed1c52737a26bb322.png?imageMogr2/format/jpg/ignore-error/1",
-              "imageWidth": "1024",
-              "imageHeight": "1536"
-            }
-          ]
-        },
-        "status": "idle"
-      }
-    ],
+    "nodes": [],
     "connections": [],
     "createdAt": 1769493738899,
-    "updatedAt": 1769494497345,
+    "updatedAt": 1769668953975,
     "thumbnail": null
   }
 ]

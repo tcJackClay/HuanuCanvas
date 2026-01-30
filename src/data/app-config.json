@@ -1,0 +1,117 @@
+{
+  "app": {
+    "name": "HuanuCanvas",
+    "version": "1.4.1",
+    "environment": "development"
+  },
+  "theme": {
+    "mode": "dark",
+    "autoDetect": false
+  },
+  "apis": {
+    "gemini": {
+      "enabled": false,
+      "apiKey": "",
+      "baseUrl": "https://generativelanguage.googleapis.com"
+    },
+    "runninghub": {
+      "enabled": true,
+      "apiKey": "5d9bcfcdde79473ab2fb0f4819d2652d",
+      "baseUrl": "https://www.runninghub.cn",
+    },
+    "thirdParty": {
+      "enabled": false,
+      "baseUrl": "https://ai.t8star.cn",
+      "apiKey": "",
+      "model": "nano-banana-2",
+      "chatModel": "nano-chat-2"
+    },
+    "sora": {
+      "enabled": false,
+      "apiKey": "",
+      "baseUrl": "https://api.openai.com"
+    },
+    "veo": {
+      "enabled": false,
+      "apiKey": "",
+      "baseUrl": "https://generativelanguage.googleapis.com"
+    }
+  },
+  "features": {
+    "autoSave": true,
+    "runningHubFunctions": [
+      {
+        "id": "ai_image_upscale",
+        "name": "图片放大",
+        "icon": "H",
+        "color": "#3B82F6",
+        "webappId": "2007596875607707650",
+        "category": "图片处理",
+        "description": "限制：4080最长边",
+        "defaultInputs": {}
+      },
+      {
+        "id": "image_enhance", 
+        "name": "人物多角度",
+        "icon": "🖼️",
+        "color": "#10B981",
+        "webappId": "1997953926043459586",
+        "category": "图片处理", 
+        "description": "1：上传主角图片；2：提示词输入（默认即可）；3：点击运行",
+        "defaultInputs": {}
+      },
+      {
+        "id": "style_transfer",
+        "name": "图片融合", 
+        "icon": "🎭",
+        "color": "#8B5CF6",
+        "webappId": "1954402676572340225",
+        "category": "图片处理",
+        "description": "拼好的图片融入到场景中",
+        "defaultInputs": {}
+      },
+      {
+        "id": "video_editing",
+        "name": "镜头分镜",
+        "icon": "🎬",
+        "color": "#EC4899",
+        "webappId": "2004018172321800193", 
+        "category": "图片处理",
+        "description": "上传图片即可出分镜",
+        "defaultInputs": {}
+      },
+      {
+        "id": "text_analysis",
+        "name": "道具迁移",
+        "icon": "📝",
+        "color": "#6B7280",
+        "webappId": "1973744628144975874",
+        "category": "图片处理", 
+        "description": "图片1目标图，图片2放入的道具",
+        "defaultInputs": {}
+      },
+      {
+        "id": "data_visualization",
+        "name": "动作迁移",
+        "icon": "📊",
+        "color": "#059669",
+        "webappId": "1996522834732130305",
+        "category": "视频处理",
+        "description": "图片与视频比例一致，5-60s",
+        "defaultInputs": {}
+      },
+      {
+        "id": "video_upscale",
+        "name": "视频高清",
+        "icon": "📊",
+        "color": "#059669",
+        "webappId": "1933689617772404738",
+        "category": "视频处理",
+        "description": "视频高清放大+补帧",
+        "defaultInputs": {}
+      }
+    ],
+    "audioSynthesis": false,
+    "musicGeneration": false
+  }
+}

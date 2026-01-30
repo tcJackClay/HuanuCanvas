@@ -17,3 +17,6 @@ export type { UseDesktopLayoutProps, UseDesktopLayoutReturn } from './useDesktop
 
 export { useDesktopInteraction } from './useDesktopInteraction';
 export type { UseDesktopInteractionProps, UseDesktopInteractionReturn, ClipboardState, ContextMenuState } from './useDesktopInteraction';
+
+export { useRunningHubFunctions } from './useRunningHubFunctions';
+export type { UseRunningHubFunctionsReturn } from './useRunningHubFunctions';

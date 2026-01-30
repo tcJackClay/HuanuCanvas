@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icons } from './Icons';
-import { NodeType, GenerationConfig } from '@/src/frontend/services/types/pebblingTypes';
+import { NodeType, GenerationConfig } from '@/services/types/pebblingTypes';
 
 interface FloatingInputProps {
   onGenerate: (type: NodeType, prompt: string, config?: GenerationConfig, files?: File[]) => void;

@@ -1,4 +1,67 @@
 
+// RunningHub related types
+export interface RunningHubFunction {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  webappId: string;
+  category: string;
+  description: string;
+  defaultInputs: Record<string, any>;
+}
+
+export interface RunningHubFunctionOperationResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+export interface RunningHubFunctionsResponse {
+  functions: RunningHubFunction[];
+}
+
+export interface FunctionIconProps {
+  icon: string;
+  color?: string;
+  size?: number;
+  className?: string;
+}
+
+export interface RunningHubNodeContentProps {
+  data: any;
+  isRunning?: boolean;
+  onExecute: () => void;
+  onStop: () => void;
+  isSelected: boolean;
+}
+
+export interface RunningHubFunctionsPanelProps {
+  functions: RunningHubFunction[];
+  onSelect: (func: RunningHubFunction) => void;
+}
+
+export interface RunningHubResultTypes {
+  success: boolean;
+  data?: {
+    outputUrls?: string[];
+    images?: string[];
+    message?: string;
+  };
+  error?: string;
+}
+
+export interface RunningHubNodeData {
+  id: string;
+  type: string;
+  webappId: string;
+  apiKey: string;
+  inputFields: any[];
+  nodeInfoList?: any[];
+  executionStatus?: 'idle' | 'running' | 'completed' | 'error';
+  [key: string]: any;
+}
+
 export interface GeneratedContent {
   text: string | null;
   imageUrl: string | null;
@@ -30,8 +93,9 @@ export type BPAgentModel = 'gemini-2.5-flash' | 'gemini-3-pro-preview';
 export interface BPField {
   id: string;
   type: BPFieldType;
-  name: string; // Variable name without prefix. e.g. "role" for /role or {role}
+  name: string; //. e.g. "role" for /role or { Variable name without prefixrole}
   label: string; // Display label
+  placeholder?: string;
   agentConfig?: {
     instruction: string; // The rule/prompt for the agent
     model: BPAgentModel;
@@ -234,6 +298,10 @@ export interface GenerationHistory {
   isThirdParty: boolean; // 是否使用第三方API
   // 输入图片本地路径（用于重新生成）
   inputImagePaths?: string[];
+  inputImages?: string[];
+  inputImageData?: string;
+  inputImageName?: string;
+  inputImageType?: string;
   // 创意库相关信息（用于重新生成时恢复）
   creativeTemplateId?: number; // 使用的创意库模板 ID
   creativeTemplateType?: 'smart' | 'smartPlus' | 'bp' | 'none'; // 创意库类型

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, X, Settings, RefreshCw, Upload, FileText, Image as ImageIcon, Music, Video, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { RunningHubNode } from '../services/api/runninghub';
-import { CanvasNode, NodeStatus, RunningHubNodeType, RunningHubCover } from '@/src/shared/types/pebblingTypes';
+import { CanvasNode, NodeStatus, RunningHubNodeType, RunningHubCover } from '@/shared/types/pebblingTypes';
 
 interface RunningHubCanvasNodeProps {
   node: CanvasNode;

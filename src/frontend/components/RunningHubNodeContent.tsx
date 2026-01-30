@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { Upload, Play, RefreshCw, Check, AlertCircle, Image, Music, Video, File, ChevronDown, ChevronUp, Loader2, Save, FolderOpen } from 'lucide-react';
-import type { RunningHubNode as RunningHubNodeType, RunningHubCover, RunningHubTemplate } from '@/src/shared/types/pebblingTypes';
-import { getNodeTypeColor } from '@/src/shared/types/pebblingTypes';
-import { MediaPreviewModal } from '@/src/frontend/components/Modals/MediaPreviewModal';
+import type { RunningHubNode as RunningHubNodeType, RunningHubCover, RunningHubTemplate } from '@/shared/types/pebblingTypes';
+import { getNodeTypeColor } from '@/shared/types/pebblingTypes';
+import { MediaPreviewModal } from '@/components/Modals/MediaPreviewModal';
+import FileThumbnail from './FileThumbnail';
 
 interface RunningHubNodeContentData {
   webappId?: string;
@@ -182,6 +183,9 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewFileRef = useRef<RunningHubNodeType | null>(null);
+  
+  // 为每个文件输入创建独立的ref
+  const fileInputRefs = useRef<Record<string, HTMLInputElement>>({});
 
   useEffect(() => {
     const configured = !!(nodeData.webappId && nodeData.apiKey);
@@ -297,15 +301,43 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
   };
 
   const openPreview = (node: RunningHubNodeType) => {
-    // 优先使用 fieldValue（服务器路径），因为它更稳定
-    let url = node.fieldValue;
+    console.log('[RunningHub] 打开预览:', {
+      nodeId: node.nodeId,
+      fieldValue: node.fieldValue,
+      hasLocalPreview: !!node.localPreviewUrl,
+      uploadStatus: node.uploadStatus,
+      serverFilePath: node.serverFilePath
+    });
     
-    // 如果 fieldValue 不存在，尝试使用 localPreviewUrl（临时 blob URL）
-    if (!url && node.localPreviewUrl) {
+    // 优先使用服务器文件路径（如果上传成功）
+    let url = null;
+    
+    if (node.uploadStatus === 'success' && node.serverFilePath) {
+      // 使用服务器文件路径
+      url = node.serverFilePath;
+      console.log('[RunningHub] 使用服务器文件路径:', url);
+    } else if (node.fieldValue && !node.fieldValue.startsWith('上传中:')) {
+      // 使用字段值（可能是服务器路径或本地文件名）
+      url = node.fieldValue;
+      console.log('[RunningHub] 使用字段值:', url);
+    } else if (node.localPreviewUrl) {
+      // 最后使用本地预览URL
       url = node.localPreviewUrl;
+      console.log('[RunningHub] 使用本地预览URL:', url);
     }
     
-    if (!url) return;
+    // 如果路径包含"api/"前缀，转换为完整的CDN URL用于预览
+    if (url && url.startsWith('api/')) {
+      const originalUrl = url;
+      url = `https://ai.t8star.cn/${url}`;
+      console.log('[RunningHub] 🔗 转换预览URL:', originalUrl, '→', url);
+    }
+    
+    if (!url) {
+      console.warn('[RunningHub] 没有找到有效的预览URL');
+      setError('没有可预览的文件');
+      return;
+    }
     
     const type = getNodeType(node);
     if (type === 'IMAGE') {
@@ -315,12 +347,22 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
     } else if (type === 'VIDEO') {
       setPreviewType('video');
     } else {
+      console.warn('[RunningHub] 不支持的文件类型:', type);
+      setError('不支持的文件类型');
       return;
     }
     
     previewFileRef.current = node;
     setPreviewUrl(url);
+    
+    console.log('[RunningHub] 预览已打开:', {
+      url: url,
+      type: type,
+      isServerPath: url === node.serverFilePath
+    });
   };
+
+
 
   const closePreview = () => {
     setPreviewUrl(null);
@@ -398,8 +440,8 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          webappId: nodeData.webappId,
-          apiKey: nodeData.apiKey
+          webappId: nodeData.webappId
+          // 移除apiKey参数，后端使用统一配置
         })
       });
       const data = await response.json();
@@ -412,18 +454,52 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
       let coversList: RunningHubCover[] = [];
       let webappName: string | undefined;
 
-      if (data.data?.code === 0 && data.data?.data?.nodeInfoList) {
+      // 根据API文档，正确的响应格式是：
+      // { code: 0, msg: "success", data: { nodeInfoList: [...], covers: [...], webappName: "..." } }
+      
+      if (data.code === 0 && data.data?.nodeInfoList) {
+        // 正确的API响应格式
+        nodeInfoList = data.data.nodeInfoList;
+        coversList = data.data.covers || [];
+        webappName = data.data.webappName;
+        console.log('[RunningHub] 使用正确的API响应格式:', {
+          nodeCount: nodeInfoList.length,
+          coversCount: coversList.length,
+          webappName
+        });
+      } else if (data.data?.code === 0 && data.data?.data?.nodeInfoList) {
+        // 旧的嵌套格式
         nodeInfoList = data.data.data.nodeInfoList;
         coversList = data.data.data.covers || [];
         webappName = data.data.data.webappName;
-      } else if (data.code === 0 && data.data?.nodeInfoList) {
-        nodeInfoList = data.data.nodeInfoList;
-        coversList = data.data.covers || [];
+        console.log('[RunningHub] 使用旧的嵌套响应格式:', {
+          nodeCount: nodeInfoList.length,
+          coversCount: coversList.length,
+          webappName
+        });
       } else if (data.data?.nodeInfoList) {
+        // 备用格式
         nodeInfoList = data.data.nodeInfoList;
         coversList = data.data.covers || [];
+        webappName = data.data.webappName;
+        console.log('[RunningHub] 使用备用响应格式:', {
+          nodeCount: nodeInfoList.length,
+          coversCount: coversList.length,
+          webappName
+        });
       } else if (Array.isArray(data)) {
+        // 直接数组格式
         nodeInfoList = data;
+        console.log('[RunningHub] 使用直接数组格式:', {
+          nodeCount: nodeInfoList.length
+        });
+      } else {
+        console.error('[RunningHub] 无法解析API响应:', {
+          data,
+          keys: Object.keys(data),
+          hasData: !!data.data,
+          hasCode: 'code' in data
+        });
       }
 
        // 处理节点选项
@@ -476,39 +552,165 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
   };
 
   const handleFileUpload = async (node: RunningHubNodeType, file: File) => {
-    if (!nodeData.apiKey) return;
+    if (!nodeData.apiKey) {
+      setError('API Key未配置');
+      return;
+    }
 
+    console.log('[RunningHub] 用户选择文件:', { fileName: file.name, size: file.size, type: file.type });
+
+    // 客户端文件验证
+    if (!file.type.startsWith('image/')) {
+      setError('请选择图片文件 (JPEG, PNG, GIF, WebP)');
+      return;
+    }
+
+    if (file.size > 30 * 1024 * 1024) { // 30MB限制
+      setError('文件大小不能超过30MB');
+      return;
+    }
+
+    // 创建本地预览URL
     const localPreviewUrl = URL.createObjectURL(file);
 
+    // 更新节点状态 - 标记为上传中
     setNodes(prev => prev.map(n =>
       n.nodeId === node.nodeId
-        ? { ...n, localPreviewUrl, fieldValue: file.name }
+        ? { 
+            ...n, 
+            localPreviewUrl, 
+            fieldValue: `上传中: ${file.name}`,
+            uploadStatus: 'uploading' 
+          }
         : n
     ));
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('fileType', node.fileType || 'input');
-    formData.append('apiKey', nodeData.apiKey);
+    // 移除apiKey字段，后端使用统一配置
 
     try {
+      console.log('[RunningHub] 开始上传文件到后端...');
+      
       const response = await fetch('/api/runninghub/upload-file', {
         method: 'POST',
         body: formData
       });
+      
       const data = await response.json();
+      console.log('[RunningHub] 文件上传响应:', data);
+      
       if (data.success) {
-        const serverPath = data.thirdPartyResponse?.data?.filePath || file.name;
+        // 优先使用RunningHub返回的文件路径
+        const serverFilePath = data.thirdPartyResponse?.data?.filePath || 
+                             data.data?.filePath || 
+                             data.filePath ||
+                             // 新增：支持fileName字段
+                             data.thirdPartyResponse?.data?.fileName ||
+                             data.data?.fileName;
+        
+        console.log('[RunningHub] 🔍 文件上传成功，完整响应分析:', {
+          success: data.success,
+          hasThirdParty: !!data.thirdPartyResponse,
+          thirdPartyData: data.thirdPartyResponse?.data,
+          serverFilePath: serverFilePath,
+          allResponseKeys: Object.keys(data),
+          allThirdPartyKeys: Object.keys(data.thirdPartyResponse || {}),
+          allDataKeys: Object.keys(data.data || {}),
+          rawThirdPartyResponse: data.thirdPartyResponse,
+          rawData: data.data,
+          rawFileName: data.thirdPartyResponse?.data?.fileName,
+          rawFilePath: data.thirdPartyResponse?.data?.filePath,
+          fileUploadSuccess: data.thirdPartyResponse?.code === 0
+        });
+        
+        if (serverFilePath) {
+          console.log('[RunningHub] 文件上传成功，服务器路径:', serverFilePath);
+          
+          // 更新节点为上传成功状态
+          setNodes(prev => prev.map(n =>
+            n.nodeId === node.nodeId
+              ? { 
+                  ...n, 
+                  fieldValue: serverFilePath, // 使用服务器原始路径（保持api/前缀）
+                  localPreviewUrl: localPreviewUrl, // 保持本地预览URL
+                  uploadStatus: 'success',
+                  serverFilePath: serverFilePath // 保存服务器路径引用
+                }
+              : n
+          ));
+          
+          setError(null); // 清除之前的错误
+        } else {
+          // 如果API返回成功但没有文件路径，显示详细调试信息
+          const debugInfo = {
+            success: data.success,
+            response: data,
+            thirdPartyResponse: data.thirdPartyResponse,
+            data: data.data,
+            attemptedPaths: [
+              'thirdPartyResponse?.data?.filePath',
+              'data?.filePath', 
+              'filePath',
+              'thirdPartyResponse?.data?.fileName',
+              'data?.fileName'
+            ]
+          };
+          
+          console.error('[RunningHub] 文件上传成功但未找到文件路径:', debugInfo);
+          
+          // 更新节点为失败状态，并显示调试信息
+          setNodes(prev => prev.map(n =>
+            n.nodeId === node.nodeId
+              ? { 
+                  ...n, 
+                  fieldValue: '上传成功但路径解析失败',
+                  uploadStatus: 'failed',
+                  uploadError: '服务器返回成功但未提供文件路径',
+                  debugInfo: debugInfo
+                }
+              : n
+          ));
+          
+          setError(`文件上传成功但路径解析失败，请检查后端日志`);
+        }
+      } else {
+        const errorMsg = data.error || data.details || data.message || '文件上传失败';
+        console.error('[RunningHub] 文件上传失败:', data);
+        
+        // 更新节点为失败状态
         setNodes(prev => prev.map(n =>
           n.nodeId === node.nodeId
-            ? { ...n, fieldValue: serverPath }
+            ? { 
+                ...n, 
+                fieldValue: file.name,
+                uploadStatus: 'failed',
+                uploadError: errorMsg
+              }
             : n
         ));
-      } else {
-        setError('文件上传失败');
+        
+        setError(`文件上传失败: ${errorMsg}`);
       }
     } catch (err) {
-      setError('文件上传失败');
+      console.error('[RunningHub] 文件上传请求失败:', err);
+      
+      const errorMsg = err instanceof Error ? err.message : '网络错误';
+      
+      // 更新节点为失败状态
+      setNodes(prev => prev.map(n =>
+        n.nodeId === node.nodeId
+          ? { 
+              ...n, 
+              fieldValue: file.name,
+              uploadStatus: 'failed',
+              uploadError: errorMsg
+            }
+          : n
+      ));
+      
+      setError(`文件上传失败: ${errorMsg}`);
     }
   };
 
@@ -523,19 +725,63 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
     try {
       // 使用新的save_nodes接口（参考官方Python示例）
       // 后端会自动完成：提交任务 + 轮询状态 + 返回结果
+      
+      // 构建节点信息，优先使用服务器文件路径
+      const nodeInfoList2 = nodes.map(n => {
+        let fieldValue = n.fieldValue || '';
+        
+        // 如果节点有上传状态且成功，使用服务器路径
+        if (n.uploadStatus === 'success' && n.serverFilePath) {
+          fieldValue = n.serverFilePath;
+          console.log(`[RunningHub] 节点 ${n.nodeId} 使用服务器文件路径:`, fieldValue);
+        } else if (n.uploadStatus === 'uploading') {
+          // 如果文件还在上传中，添加警告信息
+          fieldValue = `上传中: ${n.fieldValue}`;
+          console.warn(`[RunningHub] 节点 ${n.nodeId} 文件仍在上传中:`, fieldValue);
+        } else if (n.uploadStatus === 'failed') {
+          // 如果上传失败，添加错误信息
+          fieldValue = `上传失败: ${n.fieldValue} - ${n.uploadError}`;
+          console.error(`[RunningHub] 节点 ${n.nodeId} 文件上传失败:`, fieldValue);
+        } else {
+          console.log(`[RunningHub] 节点 ${n.nodeId} 使用原始值:`, fieldValue);
+        }
+        
+        return {
+          nodeId: n.nodeId,
+          fieldName: n.fieldName,
+          fieldValue: fieldValue,
+          description: n.description || '',
+          fieldType: n.fieldType,
+          uploadStatus: n.uploadStatus,
+          hasServerPath: !!n.serverFilePath
+        };
+      });
+      
+      console.log('[RunningHub] 提交任务，节点信息:', nodeInfoList2);
+      
+      // 🚨 添加关键调试信息
+      console.log('[RunningHub] 🚨 关键调试信息:', {
+        taskSubmissionTime: new Date().toISOString(),
+        webappId: nodeData.webappId,
+        apiKeyProvided: !!nodeData.apiKey,
+        nodeCount: nodeInfoList2.length,
+        detailedNodes: nodeInfoList2.map(n => ({
+          nodeId: n.nodeId,
+          fieldName: n.fieldName,
+          fieldValue: n.fieldValue,
+          uploadStatus: n.uploadStatus,
+          hasServerPath: !!n.serverFilePath
+        })),
+        serverFilePaths: nodeInfoList2.filter(n => n.uploadStatus === 'success').map(n => n.serverFilePath)
+      });
+      
       const response = await fetch('/api/runninghub/save_nodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           webappId: nodeData.webappId,
           apiKey: nodeData.apiKey,
-          nodeInfoList2: nodes.map(n => ({
-            nodeId: n.nodeId,
-            fieldName: n.fieldName,
-            fieldValue: n.fieldValue || '',
-            description: n.description || '',
-            fieldType: n.fieldType
-          }))
+          nodeInfoList2: nodeInfoList2
         })
       });
       
@@ -547,43 +793,195 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
       }
 
       if (result.success) {
-        // 任务成功完成
-        console.log('[RunningHub] 任务执行成功!', result);
-        setTaskStatus('success');
+        // 任务提交成功，检查是否有结果
+        console.log('[RunningHub] 任务提交成功!', result);
         
-        // 处理返回的数据格式
+        // 检查是否有直接的输出结果 (任务可能立即完成)
         const outputData = result.data || result.thirdPartyResponse?.data || result.thirdPartyResponse;
-        setTaskResult({ status: 'success', output: outputData });
-        
-        // 通知父组件创建输出节点
-        if (nodeData.onTaskComplete && outputData) {
-          console.log('[RunningHub] 通知父组件创建输出节点');
-          nodeData.onTaskComplete(outputData);
+        if (outputData && typeof outputData === 'object' && Object.keys(outputData).length > 0) {
+          console.log('[RunningHub] 任务立即完成!', outputData);
+          setTaskStatus('success');
+          setTaskResult({ status: 'success', output: outputData });
+          
+          // 通知父组件创建输出节点
+          if (nodeData.onTaskComplete) {
+            console.log('[RunningHub] 通知父组件创建输出节点');
+            nodeData.onTaskComplete(outputData);
+          }
+        } else if (result.taskId) {
+          // 有任务ID，开始轮询
+          console.log('[RunningHub] 开始轮询任务状态...', result.taskId);
+          setTaskStatus('running');
+          
+          // 开始轮询任务状态
+          pollTaskStatus(result.taskId, nodeData.apiKey, result.data?.pollUrl);
+        } else {
+          // 既没有输出也没有任务ID，视为失败
+          console.warn('[RunningHub] 任务提交成功但没有有效输出和任务ID', result);
+          setTaskStatus('failed');
+          setError('任务提交成功但没有生成有效结果');
         }
       } else {
-        // 任务失败
+        // 任务失败 - 提供更详细的错误信息
+        const errorDetails = [];
+        
+        // 检查具体错误类型
+        if (result.message) {
+          errorDetails.push(`错误信息: ${result.message}`);
+        }
+        
+        if (result.data?.code) {
+          errorDetails.push(`错误代码: ${result.data.code}`);
+        }
+        
+        if (result.data?.msg) {
+          errorDetails.push(`服务器消息: ${result.data.msg}`);
+        }
+        
+        // 检查是否为配置问题
+        if (result.message?.includes('API Key') || result.message?.includes('NOT_FOUND')) {
+          errorDetails.push('请检查RUNNINGHUB_API_KEY和RUNNINGHUB_WEBAPP_ID配置');
+        }
+        
+        // 特殊处理API密钥任务状态错误
+        if (result.message === 'APIKEY_TASK_STATUS_ERROR' || result.data?.code === 805) {
+          errorDetails.push('🔧 配置问题诊断:');
+          errorDetails.push('   1. 请确认RUNNINGHUB_WEBAPP_ID已正确配置');
+          errorDetails.push('   2. 请访问 https://www.runninghub.cn 获取正确的WebApp ID');
+          errorDetails.push('   3. 更新.env文件中的RUNNINGHUB_WEBAPP_ID');
+          errorDetails.push('   4. 重启后端服务: npm run backend:dev');
+        }
+        
+        const fullErrorMessage = errorDetails.length > 0 ? 
+          `${result.message || '任务执行失败'}\n\n${errorDetails.join('\n')}` : 
+          (result.message || '任务执行失败');
+          
         console.error('[RunningHub] 任务执行失败:', result);
+        console.error('[RunningHub] 详细错误信息:', fullErrorMessage);
+        
         setTaskStatus('failed');
         setTaskResult({ 
           status: 'failed', 
-          error: result.message || '任务执行失败' 
+          error: fullErrorMessage 
         });
+        
+        // 设置错误信息供UI显示
+        setError(fullErrorMessage);
       }
     } catch (err) {
       console.error('[RunningHub] 请求失败:', err);
+      
+      let errorMessage = '网络请求失败';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        
+        // 提供具体的调试建议
+        if (err.message.includes('API Key')) {
+          errorMessage += '\n\n请检查:\n1. RUNNINGHUB_API_KEY是否正确配置\n2. API Key是否有访问权限';
+        } else if (err.message.includes('NOT_FOUND')) {
+          errorMessage += '\n\n请检查:\n1. RUNNINGHUB_WEBAPP_ID是否正确\n2. 应用是否存在且可访问';
+        } else if (err.message.includes('fetch')) {
+          errorMessage += '\n\n请检查:\n1. 后端服务是否启动 (http://127.0.0.1:8766)\n2. 网络连接是否正常';
+        }
+      }
+      
       setTaskStatus('failed');
       setTaskResult({ 
         status: 'failed', 
-        error: err instanceof Error ? err.message : '请求失败' 
+        error: errorMessage 
       });
+      
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const pollTaskStatus = (taskId: string) => {
-    // 后端轮询已完成，此函数不再需要
-    console.log('[RunningHub] 后端已完成轮询，前端无需继续轮询');
+  const pollTaskStatus = async (taskId: string, apiKey: string, pollUrl?: string) => {
+    const maxPolls = 60; // 最多轮询60次
+    const pollInterval = 5000; // 5秒间隔
+    let pollCount = 0;
+
+    const poll = async () => {
+      try {
+        pollCount++;
+        console.log(`[RunningHub] 第${pollCount}次轮询任务状态: ${taskId}`);
+        
+        const url = pollUrl || `/api/runninghub/task-status/${taskId}?apiKey=${apiKey}&webappId=${nodeData.webappId}`;
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        console.log(`[RunningHub] 轮询结果:`, result);
+        
+        if (!response.ok) {
+          throw new Error(result.error || result.message || `HTTP ${response.status}: 轮询失败`);
+        }
+        
+        if (result.code === 0 && result.data) {
+          // 任务完成
+          console.log('[RunningHub] 任务轮询完成!');
+          setTaskStatus('success');
+          
+          const outputData = result.data || result.thirdPartyResponse?.data || result.thirdPartyResponse;
+          setTaskResult({ status: 'success', output: outputData });
+          
+          // 通知父组件创建输出节点
+          if (nodeData.onTaskComplete && outputData) {
+            console.log('[RunningHub] 通知父组件创建输出节点');
+            nodeData.onTaskComplete(outputData);
+          }
+          return;
+        }
+        
+        if (result.code === 805 || result.message?.includes('APIKEY')) {
+          // 任务失败
+          console.error('[RunningHub] 任务轮询失败:', result);
+          setTaskStatus('failed');
+          setTaskResult({ 
+            status: 'failed', 
+            error: result.message || result.msg || '任务执行失败' 
+          });
+          setError(result.message || result.msg || '任务执行失败');
+          return;
+        }
+        
+        if (pollCount < maxPolls) {
+          // 继续轮询
+          console.log(`[RunningHub] 任务仍在处理中，${pollInterval/1000}秒后继续轮询...`);
+          setTimeout(poll, pollInterval);
+        } else {
+          // 轮询超时
+          console.error('[RunningHub] 任务轮询超时');
+          setTaskStatus('failed');
+          setTaskResult({ 
+            status: 'failed', 
+            error: '任务执行超时（超过5分钟）' 
+          });
+          setError('任务执行超时，请稍后查看结果');
+        }
+        
+      } catch (err) {
+        console.error('[RunningHub] 轮询失败:', err);
+        
+        if (pollCount < maxPolls) {
+          // 网络错误，重试
+          console.log(`[RunningHub] 轮询出错，${pollInterval/1000}秒后重试...`);
+          setTimeout(poll, pollInterval);
+        } else {
+          // 重试次数用完
+          setTaskStatus('failed');
+          setTaskResult({ 
+            status: 'failed', 
+            error: `轮询失败: ${err instanceof Error ? err.message : '网络错误'}` 
+          });
+          setError(`轮询失败: ${err instanceof Error ? err.message : '网络错误'}`);
+        }
+      }
+    };
+    
+    // 开始第一次轮询
+    poll();
   };
 
   const getNodeIcon = (nodeType: string) => {
@@ -659,7 +1057,7 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
           <div className="space-y-2">
             <input
               type="file"
-              ref={fileInputRef}
+              ref={el => fileInputRefs.current[node.nodeId] = el}
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
@@ -671,50 +1069,92 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
             />
             
             {hasPreview ? (
-              <div className="flex items-center gap-3">
-                 {type === 'IMAGE' && node.localPreviewUrl && (
-                   <button
-                     onClick={() => openPreview(node)}
-                     className="w-auto h-32 rounded-lg overflow-hidden flex-shrink-0 border border-white/20 hover:border-green-400 transition-colors"
-                   >
+              <div className="space-y-3">
+                {/* 预览缩略图 */}
+                <div className="flex flex-col gap-2">
+                  {type === 'IMAGE' && node.localPreviewUrl && (
+                    <button
+                      onClick={() => openPreview(node)}
+                      className="w-auto h-32 rounded-lg overflow-hidden border border-white/20 hover:border-green-400 transition-colors"
+                    >
+                      <img src={node.localPreviewUrl} alt="Preview" className="h-full w-auto object-contain" />
+                    </button>
+                  )}
+                  
+                  {type === 'AUDIO' && node.localPreviewUrl && (
+                    <button
+                      onClick={() => openPreview(node)}
+                      className="w-20 h-20 rounded-full bg-purple-500/20 flex items-center justify-center border border-purple-500/30 hover:border-purple-400 transition-colors"
+                    >
+                      <Music className="w-8 h-8 text-purple-400" />
+                    </button>
+                  )}
+                  
+                  {type === 'VIDEO' && node.localPreviewUrl && (
+                    <button
+                      onClick={() => openPreview(node)}
+                      className="w-auto h-32 rounded-lg overflow-hidden border border-white/20 hover:border-green-400 transition-colors"
+                    >
                      <img src={node.localPreviewUrl} alt="Preview" className="h-full w-auto object-contain" />
-                   </button>
-                 )}
-                {type === 'AUDIO' && node.localPreviewUrl && (
+                    </button>
+                  )}
+                </div>
+                
+                {/* 文件信息 */}
+                <div className="space-y-2">
                   <button
                     onClick={() => openPreview(node)}
-                    className="w-20 h-20 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0 border border-purple-500/30 hover:border-purple-400 transition-colors"
-                  >
-                    <Music className="w-8 h-8 text-purple-400" />
-                  </button>
-                )}
-                 {type === 'VIDEO' && node.localPreviewUrl && (
-                   <button
-                     onClick={() => openPreview(node)}
-                     className="w-auto h-32 rounded-lg overflow-hidden flex-shrink-0 border border-white/20 hover:border-green-400 transition-colors"
-                   >
-                    <img src={node.localPreviewUrl} alt="Preview" className="h-full w-auto object-contain" />
-                  </button>
-                )}
-                <div className="flex-1 min-w-0">
-                  <button
-                    onClick={() => openPreview(node)}
-                    className="text-xs text-left truncate hover:text-green-300 transition-colors w-full"
+                    className="text-xs text-left truncate hover:text-green-300 transition-colors w-full flex items-center gap-2"
                     style={{ color: theme.colors.textPrimary }}
                   >
-                    {node.fieldValue || '已选择文件'}
+                    {/* 上传状态指示器 */}
+                    {node.uploadStatus && (
+                      <div className="flex items-center gap-1">
+                        {node.uploadStatus === 'uploading' && (
+                          <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
+                        )}
+                        {node.uploadStatus === 'success' && (
+                          <Check className="w-3 h-3 text-green-400" />
+                        )}
+                        {node.uploadStatus === 'failed' && (
+                          <AlertCircle className="w-3 h-3 text-red-400" />
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* 文件名或状态信息 */}
+                    <span className="flex-1">
+                      {node.fieldValue || '已选择文件'}
+                    </span>
                   </button>
+                  
+                  {/* 上传错误信息 */}
+                  {node.uploadStatus === 'failed' && node.uploadError && (
+                    <div className="text-xs text-red-400 bg-red-500/10 rounded px-2 py-1">
+                      {node.uploadError}
+                    </div>
+                  )}
+                  
+                  {/* 服务器路径信息（仅在成功时显示） */}
+                  {node.uploadStatus === 'success' && node.serverFilePath && (
+                    <div className="text-xs text-green-400/60 bg-green-500/5 rounded px-2 py-1 truncate">
+                      服务器路径: {node.serverFilePath}
+                    </div>
+                  )}
+                  
+                  {/* 更换按钮 */}
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => fileInputRefs.current[node.nodeId]?.click()}
                     className="text-xs text-green-400 hover:text-green-300 transition-colors"
+                    disabled={node.uploadStatus === 'uploading'}
                   >
-                    更换文件
+                    {node.uploadStatus === 'uploading' ? '上传中...' : '更换'}
                   </button>
                 </div>
               </div>
             ) : (
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => fileInputRefs.current[node.nodeId]?.click()}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors w-full"
                 style={{
                   backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -1054,6 +1494,8 @@ const RunningHubNodeContent: React.FC<RunningHubNodeContentProps> = ({ data: nod
           </div>
         </div>
       )}
+
+
 
       {/* 运行按钮 */}
       <div className="px-4 py-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>

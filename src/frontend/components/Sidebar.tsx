@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Icons } from './Icons';
 import { X, Save, Eye, EyeOff, FolderOpen, Trash2 } from 'lucide-react';
-import { NodeType, NodeData, CanvasPreset, Vec2, RunningHubTemplate } from '@/src/frontend/services/types/pebblingTypes';
+import { NodeType, NodeData, CanvasPreset, Vec2, RunningHubTemplate } from '@/services/types/pebblingTypes';
 import { CanvasListItem } from '../services/api/canvas';
 import { CreativeIdea } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
 import RunningHubNodeModal from '../RunningHubNodeModal';
+import ConfigManagerModal from '../ConfigManagerModal';
+import { configService } from '../services/configService';
+import { configManager } from '../services/ViteConfigManager';
 
 // 香蕉SVG图标组件
 const BananaIcon: React.FC<{ size?: number; className?: string }> = ({ size = 14, className = '' }) => (
@@ -60,21 +63,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'bp' | 'workflow' | 'favorite'>('all');
   const [hoveredIdeaId, setHoveredIdeaId] = useState<number | null>(null);
     const [showRunningHubMenu, setShowRunningHubMenu] = useState(false);
-    const buttonName = localStorage.getItem('runningHubButtonName') || 'RUNNINGHUB API';
-    const [hoverButtonName, setHoverButtonName] = useState(buttonName);
+    const [hoverButtonName, setHoverButtonName] = useState('RUNNINGHUB API');
     const [runningHubConfig, setRunningHubConfig] = useState<{
-        webappId?: string;
         apiKey?: string;
-    }>(() => {
-        try {
-            const config = localStorage.getItem('runningHubConfig');
-            return config ? JSON.parse(config) : {};
-        } catch {
-            return {};
-        }
-    });
+    }>({});
     const [showConfigModal, setShowConfigModal] = useState(false);
-  const [, setButtonName] = useState(buttonName);
   const [showInputModal, setShowInputModal] = useState<{
     type: 'setId' | 'rename' | null;
     title: string;
@@ -88,16 +81,41 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [isLoadingNodeInfo, setIsLoadingNodeInfo] = useState(false);
 
   // RunningHub模板管理状态
-  const [runningHubTemplates, setRunningHubTemplates] = useState<RunningHubTemplate[]>(() => {
-    try {
-      const templates = localStorage.getItem('runningHubTemplates');
-      return templates ? JSON.parse(templates) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [runningHubTemplates, setRunningHubTemplates] = useState<RunningHubTemplate[]>([]);
   const [showTemplatePanel, setShowTemplatePanel] = useState(false);
   
+  // 初始化配置
+  useEffect(() => {
+    const initConfig = async () => {
+      try {
+        // 初始化配置服务
+        await configService.initialize();
+        
+        // 加载RunningHub配置
+        const runningHubConfig = configService.getRunningHubConfig();
+        setRunningHubConfig({
+          apiKey: runningHubConfig?.apiKey || ''
+        });
+      } catch (error) {
+        console.error('初始化配置失败:', error);
+      }
+    };
+
+    initConfig();
+
+    // 监听配置变化
+    const unsubscribe = configService.onConfigChange((changeType, path, value) => {
+      if (path.startsWith('apis.runninghub')) {
+        const runningHubConfig = configService.getRunningHubConfig();
+        setRunningHubConfig({
+          apiKey: runningHubConfig?.apiKey || ''
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
   // 点击外部区域关闭菜单
   useEffect(() => {
     const handleClickOutside = () => {
@@ -120,16 +138,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         setShowInputModal({
           type: 'setId',
           title: '设置 WebAppId',
-          placeholder: '请输入 WebAppId',
-          currentValue: runningHubConfig.webappId,
+          placeholder: '不需要配置全局 WebAppId',
+          currentValue: '',
           onSubmit: (value: string) => {
-            const trimmedValue = value.trim();
-            const updatedConfig = {
-              ...runningHubConfig,
-              webappId: trimmedValue
-            };
-            setRunningHubConfig(updatedConfig);
-            localStorage.setItem('runningHubConfig', JSON.stringify(updatedConfig));
+            // 不需要设置全局webappId
+            setShowInputModal(null);
             setShowInputModal(null);
           }
         });
@@ -138,15 +151,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         setShowTemplatePanel(true);
         break;
       case 'addNode':
-        if (!runningHubConfig.webappId || !runningHubConfig.apiKey) {
-          alert('请先配置 RunningHub 的 WebAppId 和 API Key\n\n1. 点击"设置配置"配置 WebAppId 和 API Key');
+        if (!configService.isRunningHubEnabled()) {
+          alert('请先在配置文件中设置 RunningHub 的 API Key\n\n请编辑 src/data/app-config.json 文件');
           return;
         }
-        handleAddNodeWithNodeInfo();
+        // 改为显示功能选择面板，而不是直接添加节点
+        setShowRunningHubNodeModal(true);
         break;
       case 'apply':
-        if (!runningHubConfig.webappId || !runningHubConfig.apiKey) {
-          alert('请先配置 RunningHub 的 WebAppId 和 API Key\n\n1. 点击"设置配置"配置 WebAppId 和 API Key');
+        if (!configService.isRunningHubEnabled()) {
+          alert('请先在配置文件中设置 RunningHub 的 WebAppId 和 API Key\n\n请编辑 src/data/app-config.json 文件');
           return;
         }
         setShowRunningHubNodeModal(true);
@@ -163,9 +177,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           onSubmit: (value: string) => {
             const trimmedName = value.trim();
             if (trimmedName) {
-              setButtonName(trimmedName);
               setHoverButtonName(trimmedName);
-              localStorage.setItem('runningHubButtonName', trimmedName);
+              // 注意：在新的配置架构中，按钮名称可能不再使用localStorage存储
+              // 如果需要持久化，建议添加到配置文件中
             }
             setShowInputModal(null);
           }
@@ -188,17 +202,22 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // 添加节点时先获取节点信息
-  const handleAddNodeWithNodeInfo = async () => {
+  // 添加节点时先获取节点信息 - 现在通过功能选择获取webappId
+  const handleAddNodeWithNodeInfo = async (webappId: string) => {
+    const apiKey = configService.getRunningHubConfig()?.apiKey;
+    if (!apiKey) {
+      alert('请先在配置文件中设置RunningHub的API Key');
+      return;
+    }
+
     setIsLoadingNodeInfo(true);
     try {
-      console.log('[Sidebar] 开始获取节点信息, webappId:', runningHubConfig.webappId);
       const response = await fetch('/api/runninghub/node-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          webappId: runningHubConfig.webappId, 
-          apiKey: runningHubConfig.apiKey 
+          webappId: webappId, 
+          apiKey: apiKey
         })
       });
       const data = await response.json();
@@ -218,29 +237,39 @@ const Sidebar: React.FC<SidebarProps> = ({
         coversList = data.data.covers || [];
       }
 
+      // 获取RunningHub配置
+      const runningHubConfig = configService.getRunningHubConfig();
+      const apiKey = runningHubConfig?.apiKey;
+      // 从功能配置中获取webappId，而不是从apis.runninghub中获取
+      const functions = configService.getRunningHubFunctions();
+      const webappId = functions?.[0]?.webappId || '';
+
       if (nodeInfoList && Array.isArray(nodeInfoList) && nodeInfoList.length > 0) {
         // 添加节点，携带获取到的节点信息和封面
         onAdd('runninghub', '', undefined, undefined, {
-          webappId: runningHubConfig.webappId,
-          apiKey: runningHubConfig.apiKey,
+          webappId: webappId,
+          apiKey: apiKey,
           inputFields: nodeInfoList,
           covers: coversList
         });
       } else {
         // 没有节点信息也添加节点
         onAdd('runninghub', '', undefined, undefined, {
-          webappId: runningHubConfig.webappId,
-          apiKey: runningHubConfig.apiKey,
+          webappId: webappId,
+          apiKey: apiKey,
           covers: coversList
         });
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error('[Sidebar] 获取节点信息失败:', err);
-      // 即使失败也添加节点，让节点自己尝试获取
-      onAdd('runninghub', '', undefined, undefined, { 
-        webappId: runningHubConfig.webappId,
-        apiKey: runningHubConfig.apiKey
+      
+      // 即使失败也添加节点，但移除对全局webappId的依赖
+      const runningHubConfig = configService.getRunningHubConfig();
+      const apiKey = runningHubConfig?.apiKey;
+      
+        onAdd('runninghub', '', undefined, undefined, { 
+          apiKey: apiKey
       });
     } finally {
       setIsLoadingNodeInfo(false);
@@ -622,11 +651,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     }}
                                     className="px-4 py-2.5 flex items-center justify-between group cursor-pointer border-b last:border-b-0"
                                     onClick={() => {
-                                        if (runningHubConfig.webappId !== template.webappId) {
-                                            const config = { ...runningHubConfig, webappId: template.webappId };
-                                            setRunningHubConfig(config);
-                                            localStorage.setItem('runningHubConfig', JSON.stringify(config));
-                                        }
                                         setShowTemplatePanel(false);
                                     }}
                                 >
@@ -995,25 +1019,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div className="p-6 space-y-6">
                 <div>
                   <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.textPrimary }}>
-                    WebApp ID <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue={runningHubConfig.webappId}
-                    placeholder="请输入 RunningHub WebApp ID"
-                    className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors"
-                    style={{
-                      backgroundColor: theme.colors.bgTertiary,
-                      color: theme.colors.textPrimary,
-                      borderColor: theme.colors.border,
-                      border: `1px solid ${theme.colors.border}`
-                    }}
-                    id="config-webappId"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.textPrimary }}>
                     API Key <span className="text-red-400">*</span>
                   </label>
                   <input
@@ -1056,13 +1061,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                       return;
                     }
 
-                    const updatedConfig = {
-                      ...runningHubConfig,
+                    // 更新配置
+                    configManager.set('apis.runninghub.webappId', webappId.trim());
+                    configManager.set('apis.runninghub.apiKey', apiKey.trim());
+                    
+                    // 更新本地状态
+                    setRunningHubConfig({
                       webappId: webappId.trim(),
                       apiKey: apiKey.trim()
-                    };
-                    setRunningHubConfig(updatedConfig);
-                    localStorage.setItem('runningHubConfig', JSON.stringify(updatedConfig));
+                    });
                     setShowConfigModal(false);
                   }}
                   className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-medium transition-all"
@@ -1091,14 +1098,15 @@ const Sidebar: React.FC<SidebarProps> = ({
         <RunningHubNodeModal
           isOpen={showRunningHubNodeModal}
           onClose={() => setShowRunningHubNodeModal(false)}
-          webappId={runningHubConfig.webappId}
           apiKey={runningHubConfig.apiKey}
-          onSubmit={(nodeInfoList2) => {
-            console.log('提交节点信息:', nodeInfoList2);
-            // 可选：在画布上添加节点
-            onAdd('runninghub', { 
-              webappId: runningHubConfig.webappId,
+          onSubmit={(nodeInfoList2, selectedFunction) => {
+            console.log('提交节点信息:', nodeInfoList2, '选择的功能:', selectedFunction);
+            
+            // 使用选中的功能的webappId
+            onAdd('runninghub', '', undefined, undefined, {
+              webappId: selectedFunction.webappId,
               apiKey: runningHubConfig.apiKey,
+              functionName: selectedFunction.name,
               inputFields: nodeInfoList2 
             });
           }}

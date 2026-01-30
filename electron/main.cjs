@@ -10,7 +10,7 @@ const CONFIG = {
   windowHeight: 800,
   minWidth: 1024,
   minHeight: 768,
-  backendPort: 8765,
+  backendPort: 8766,
   backendHost: '127.0.0.1',
   isDev: !app.isPackaged
 };
@@ -1020,7 +1020,7 @@ function createWindow() {
   // 加载应用
   if (CONFIG.isDev) {
     // 开发环境：加载 Vite 开发服务器
-    mainWindow.loadURL('http://localhost:5176');
+    mainWindow.loadURL('http://localhost:5207');
     // 打开开发者工具
     mainWindow.webContents.openDevTools();
   } else {

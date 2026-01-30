@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>配置测试</title>
+</head>
+<body>
+    <h1>RunningHub配置测试</h1>
+    <button onclick="testConfig()">测试配置</button>
+    <div id="result"></div>
+
+    <script>
+        async function testConfig() {
+            const result = document.getElementById('result');
+            
+            try {
+                // 测试配置加载
+                console.log('正在加载配置...');
+                const configResponse = await fetch('/src/data/app-config.json');
+                const config = await configResponse.json();
+                
+                console.log('配置加载成功:', config);
+                
+                // 检查RunningHub配置
+                const runningHub = config.apis.runninghub;
+                result.innerHTML = `
+                    <h2>配置状态:</h2>
+                    <p>enabled: ${runningHub.enabled}</p>
+                    <p>apiKey: ${runningHub.apiKey ? '已设置' : '未设置'}</p>
+                    <p>defaultWebappId: ${runningHub.defaultWebappId || '未设置'}</p>
+                    <p>功能数量: ${config.features.runningHubFunctions.length}</p>
+                `;
+                
+                // 检查功能配置
+                const functions = config.features.runningHubFunctions;
+                result.innerHTML += '<h3>功能列表:</h3><ul>';
+                functions.forEach(func => {
+                    result.innerHTML += `<li>${func.name} (${func.id}): ${func.webappId}</li>`;
+                });
+                result.innerHTML += '</ul>';
+                
+            } catch (error) {
+                console.error('配置测试失败:', error);
+                result.innerHTML = `<p style="color: red;">配置加载失败: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

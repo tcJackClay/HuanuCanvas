@@ -303,11 +303,54 @@ export interface DesktopStackItem extends BaseDesktopItem {
 // 联合类型
 export type DesktopItem = DesktopImageItem | DesktopFolderItem | DesktopStackItem;
 
-// 桌面状态
-export interface DesktopState {
-  items: DesktopItem[];
-  selectedIds: string[];
-  openFolderId: string | null; // 当前打开的文件夹ID
-  gridSize: number; // 网格大小
-  showGrid: boolean; // 是否显示网格
+// ========== RUNNINGHUB 功能面板类型 ==========
+
+// RUNNINGHUB功能项
+export interface RunningHubFunction {
+  id: string;                    // 唯一标识符
+  name: string;                  // 显示名称
+  icon: string;                  // Emoji图标
+  color: string;                 // 主题色彩（HEX格式）
+  webappId: string;             // RUNNINGHUB应用ID
+  category: string;              // 功能分类
+  description: string;            // 详细描述
+  defaultInputs?: Record<string, string>; // 默认输入参数
+}
+
+// 功能分类统计
+export interface FunctionCategory {
+  name: string;
+  count: number;
+  color: string;
+}
+
+// API响应类型
+export interface RunningHubFunctionsResponse {
+  success: boolean;
+  data: RunningHubFunction[];
+  count: number;
+}
+
+// 单个功能操作响应
+export interface RunningHubFunctionOperationResponse {
+  success: boolean;
+  message: string;
+  data?: RunningHubFunction;
+  deletedFunction?: RunningHubFunction;
+  error?: string;
+  details?: string;
+}
+
+// 功能面板组件Props
+export interface RunningHubFunctionsPanelProps {
+  isVisible: boolean;
+  onClose: () => void;
+  onSelectFunction: (func: RunningHubFunction) => void;
+}
+
+// 功能图标组件Props
+export interface FunctionIconProps {
+  func: RunningHubFunction;
+  onClick: (func: RunningHubFunction) => void;
+  isSelected?: boolean;
 }

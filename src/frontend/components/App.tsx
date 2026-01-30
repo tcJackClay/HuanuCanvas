@@ -3,20 +3,20 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { ImageUploader } from './ImageUploader';
 import { normalizeImageUrl } from '../utils/image';
 import { GeneratedImageDisplay } from './GeneratedImageDisplay';
-import { editImageWithGemini, generateCreativePromptFromImage, initializeAiClient, processBPTemplate, setThirdPartyConfig, optimizePrompt } from '@/src/frontend/services/ai/geminiService';
-import CreativeExtractor, { extractCreatives } from '@/src/frontend/services/ai/creativeExtractor';
+import { editImageWithGemini, generateCreativePromptFromImage, initializeAiClient, processBPTemplate, setThirdPartyConfig, optimizePrompt } from '@/services/ai/geminiService';
+import CreativeExtractor, { extractCreatives } from '@/services/ai/creativeExtractor';
 import { ApiStatus, GeneratedContent, CreativeIdea, SmartPlusConfig, ThirdPartyApiConfig, GenerationHistory, DesktopItem, DesktopImageItem, DesktopFolderItem, CreativeCategoryType } from '../../shared/types';
-import { ImagePreviewModal } from '@/src/frontend/components/Modals/ImagePreviewModal';
-import { AddCreativeIdeaModal } from '@/src/frontend/components/Modals/AddCreativeIdeaModal';
-import { SettingsModal } from '@/src/frontend/components/Modals/SettingsModal';
-import { downloadImage } from '@/src/frontend/services/export/desktopExporter';
-import { ThemeProvider, useTheme, SnowfallEffect } from '@/src/frontend/contexts/ThemeContext';
-import { HistoryDock } from '@/src/frontend/components/Modals/HistoryDock';
-import PebblingCanvas from '@/src/frontend/components/PebblingCanvas/index';
-import { BatchExport } from '@/src/frontend/components/BatchExport';
-import * as creativeIdeasApi from '@/src/frontend/services/original-services/api/creativeIdeas';
-import * as historyApi from '@/src/frontend/services/original-services/api/history';
-import * as desktopApi from '@/src/frontend/services/original-services/api/desktop';
+import { ImagePreviewModal } from '@/components/Modals/ImagePreviewModal';
+import { AddCreativeIdeaModal } from '@/components/Modals/AddCreativeIdeaModal';
+import { SettingsModal } from '@/components/Modals/SettingsModal';
+import { downloadImage } from '@/services/export/desktopExporter';
+import { ThemeProvider, useTheme, SnowfallEffect } from '@/contexts/ThemeContext';
+import { HistoryDock } from '@/components/Modals/HistoryDock';
+import PebblingCanvas from '@/components/PebblingCanvas/index';
+import { BatchExport } from '@/components/BatchExport';
+import * as creativeIdeasApi from '@/services/original-services/api/creativeIdeas';
+import * as historyApi from '@/services/original-services/api/history';
+import * as desktopApi from '@/services/original-services/api/desktop';
 interface LeftPanelProps {
   files: File[];
   activeFileIndex: number | null;
@@ -1324,7 +1324,7 @@ const App: React.FC = () => {
     return { historyId: undefined, localImageUrl };
   };
   // 图片下载逻辑已迁移到 services/export/desktopExporter.ts
-  // 使用 downloadImage from '@/src/frontend/components/Modals/services/export'
+  // 使用 downloadImage from '@/services/export/desktopExporter'
   // 导出创意库：将本地图片转换为base64确保跨设备导入时图片不丢失
   const handleExportIdeas = async () => {
     if (creativeIdeas.length === 0) {

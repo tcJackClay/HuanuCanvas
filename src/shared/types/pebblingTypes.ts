@@ -21,6 +21,11 @@ export interface RunningHubNode {
   localPreviewUrl?: string;
   description?: string;
   fieldData?: string;
+  // 新增：上传状态跟踪
+  uploadStatus?: 'idle' | 'uploading' | 'success' | 'failed';
+  uploadError?: string;
+  serverFilePath?: string;
+  originalFileName?: string;
 }
 
 export interface RunningHubCover {

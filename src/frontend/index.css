@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 /* ===========================================
    PenguinMagic UI - 现代暗色精致样式系统
    =========================================== */
@@ -8,7 +10,6 @@
 @tailwind utilities;
 
 /* 基础重置和全局样式 */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
   /* 核心颜色 - 冰雪极光主题 */
@@ -1108,5 +1109,4 @@ body {
   .input-field {
     @apply w-full px-3 py-2 bg-glass-bg border border-glass-border rounded-md text-white placeholder-gray-400 focus:border-ice-blue focus:ring-2 focus:ring-ice-blue/20 outline-none transition-all duration-200;
   }
-}
 }

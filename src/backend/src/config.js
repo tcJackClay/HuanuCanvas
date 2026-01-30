@@ -1,11 +1,12 @@
 const path = require('path');
+const fs = require('fs');
 
 // 判断是否在 Electron 打包环境中运行
 const IS_ELECTRON = process.env.IS_ELECTRON === 'true';
 const USER_DATA_PATH = process.env.USER_DATA_PATH;
 
 // 获取项目根目录 (backend-nodejs的上一级)
-const PROJECT_DIR = path.resolve(__dirname, '..', '..');
+const PROJECT_DIR = path.resolve(__dirname, '../../..');
 
 // 数据存储基础目录：
 // - Electron 打包环境：使用用户数据目录 (%APPDATA%/penguin-magic)
@@ -24,11 +25,81 @@ function getDistDir() {
   return path.join(PROJECT_DIR, 'dist');
 }
 
+// 读取RunningHub配置
+function getRunningHubConfig() {
+  const appConfigPath = path.join(BASE_DIR, 'data', 'app-config.json');
+  let apiKey = '';
+  let baseUrl = '';
+  let defaultWebAppId = '';
+  let functions = [];
+  
+  try {
+    console.log('[Config] 尝试读取配置文件:', appConfigPath);
+    
+    if (fs.existsSync(appConfigPath)) {
+      const appConfigData = fs.readFileSync(appConfigPath, 'utf8');
+      const appConfig = JSON.parse(appConfigData);
+      
+      console.log('[Config] 配置文件读取成功，开始解析配置...');
+      
+      // 读取RunningHub API配置
+      const runningHubConfig = appConfig.apis?.runninghub;
+      if (runningHubConfig) {
+        apiKey = runningHubConfig.apiKey || '';
+        baseUrl = runningHubConfig.baseUrl || 'https://www.runninghub.cn';
+        console.log('[Config] RunningHub API配置读取成功:', {
+          hasApiKey: !!apiKey,
+          baseUrl,
+          enabled: runningHubConfig.enabled
+        });
+      } else {
+        console.warn('[Config] 未找到RunningHub API配置，使用默认配置');
+      }
+      
+      // 读取RunningHub功能列表
+      functions = appConfig.features?.runningHubFunctions || [];
+      if (functions.length > 0) {
+        defaultWebAppId = functions[0].webappId;
+        console.log('[Config] RunningHub功能列表读取成功:', {
+          functionCount: functions.length,
+          firstWebAppId: defaultWebAppId,
+          functionNames: functions.map(f => f.name)
+        });
+      } else {
+        console.warn('[Config] RunningHub功能列表为空');
+      }
+      
+      console.log('[Config] 配置文件解析完成:', {
+        apiKey: apiKey ? apiKey.substring(0, 8) + '...' : '未配置',
+        baseUrl,
+        defaultWebAppId,
+        functionCount: functions.length
+      });
+      
+    } else {
+      console.error('[Config] 配置文件不存在:', appConfigPath);
+    }
+  } catch (error) {
+    console.error('[Config] 读取app-config.json失败:', {
+      error: error.message,
+      path: appConfigPath,
+      stack: error.stack
+    });
+  }
+  
+  // 直接返回配置值，不使用环境变量
+  return {
+    API_BASE_URL: baseUrl || 'https://www.runninghub.cn',
+    DEFAULT_API_KEY: apiKey,
+    DEFAULT_WEBAPP_ID: defaultWebAppId,
+  };
+}
+
 // 配置项
 const config = {
   // 服务器配置
   HOST: process.env.HOST || '127.0.0.1',
-  PORT: process.env.PORT || 8765,
+  PORT: process.env.PORT || 8766,
   NODE_ENV: process.env.NODE_ENV || 'production',
   
   // 目录路径（用户数据目录）
@@ -58,11 +129,7 @@ const config = {
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   
   // RunningHub 配置
-  RUNNINGHUB: {
-    API_BASE_URL: process.env.RUNNINGHUB_API_BASE_URL || 'https://www.runninghub.cn',
-    DEFAULT_API_KEY: process.env.RUNNINGHUB_API_KEY || '',
-    DEFAULT_WEBAPP_ID: process.env.RUNNINGHUB_WEBAPP_ID || '',
-  },
+  RUNNINGHUB: getRunningHubConfig(),
 };
 
 module.exports = config;

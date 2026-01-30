@@ -148,11 +148,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // 保存 RunningHub 配置
   const handleSaveRunningHubConfig = () => {
-    // 获取现有配置，保留WebAppId（可能来自按钮菜单设置）
+    // 不需要保存全局webappId
     const existingConfig = JSON.parse(localStorage.getItem('runningHubConfig') || '{}');
     const updatedConfig = {
       ...existingConfig,
-      webappId: runningHubConfig.webappId || existingConfig.webappId || '',
       apiKey: runningHubConfig.apiKey
     };
     localStorage.setItem('runningHubConfig', JSON.stringify(updatedConfig));
