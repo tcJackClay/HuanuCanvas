@@ -115,7 +115,16 @@ export class ConfigService {
   getFunctionWebappId(functionId: string): string {
     const functions = this.getRunningHubFunctions();
     const functionConfig = functions.find((f: any) => f.id === functionId);
-    return functionConfig?.webappId || this.getRunningHubConfig()?.defaultWebappId || '';
+    
+    if (!functionConfig) {
+      throw new Error(`未找到功能 ${functionId} 的配置`);
+    }
+    
+    if (!functionConfig.webappId) {
+      throw new Error(`功能 ${functionConfig.name} 缺少webappId配置`);
+    }
+    
+    return functionConfig.webappId;
   }
 
   /**
@@ -126,6 +135,7 @@ export class ConfigService {
     const functionConfig = functions.find((f: any) => f.id === functionId);
     
     if (!functionConfig) {
+      console.warn(`未找到功能配置: ${functionId}`);
       return null;
     }
 
@@ -133,7 +143,54 @@ export class ConfigService {
     return {
       ...functionConfig,
       apiKey: runningHubConfig?.apiKey || '',
-      baseUrl: runningHubConfig?.baseUrl || 'https://api.runninghub.com'
+      baseUrl: runningHubConfig?.baseUrl || 'https://www.runninghub.cn'
+    };
+  }
+
+  /**
+   * 检查特定功能是否已配置
+   */
+  isFunctionConfigured(functionId: string): boolean {
+    const functionConfig = this.getFunctionConfig(functionId);
+    return !!(functionConfig?.webappId && functionConfig?.apiKey);
+  }
+
+  /**
+   * 验证RunningHub功能配置
+   */
+  validateRunningHubConfig(): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    // 验证API配置
+    const runningHubConfig = this.getRunningHubConfig();
+    if (!runningHubConfig?.apiKey) {
+      errors.push('RunningHub API Key未配置');
+    }
+    
+    if (!runningHubConfig?.baseUrl) {
+      errors.push('RunningHub BaseUrl未配置');
+    }
+
+    // 验证功能配置
+    const functions = this.getRunningHubFunctions();
+    if (!functions || functions.length === 0) {
+      errors.push('未配置RunningHub功能');
+      return { isValid: false, errors };
+    }
+
+    // 验证每个功能的webappId
+    functions.forEach((func: any) => {
+      if (!func.webappId) {
+        errors.push(`功能 ${func.name} 缺少webappId配置`);
+      }
+      if (!func.id) {
+        errors.push(`功能 ${func.name} 缺少ID配置`);
+      }
+    });
+
+    return {
+      isValid: errors.length === 0,
+      errors
     };
   }
 

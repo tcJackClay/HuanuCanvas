@@ -1687,21 +1687,24 @@ if (node.type === 'resize') return renderMultiAngleNode();
         );
     }
 
-    // RunningHub Output 节点 - 显示RunningHub执行结果 + 下载功能
+// RunningHub Output 节点 - 显示RunningHub执行结果 + 下载功能
     if (node.type === 'runninghub-output') {
-        const downloadFiles = node.data?.downloadFiles || [];
+        let downloadFiles: any[] = [];
+        try {
+            const rawFiles = node.data?.downloadFiles || [];
+            if (typeof rawFiles === 'string') {
+                downloadFiles = JSON.parse(rawFiles);
+            } else if (Array.isArray(rawFiles)) {
+                downloadFiles = rawFiles;
+            }
+        } catch (e) {
+            downloadFiles = [];
+        }
+
         const runninghubOutput = node.data?.runninghubOutput || {};
+        const allImages = node.data?.allImages || [];
+        const isMultiImage = node.data?.isMultiImage || allImages.length > 1;
         const hasContent = node.content || downloadFiles.length > 0;
-        
-        // ========== 调试信息：runninghub-output节点渲染 ==========
-        console.log(`[Debug-Render] runninghub-output节点渲染:`, {
-            nodeId: node.id.slice(0, 8),
-            status: node.status,
-            hasContent: hasContent,
-            contentLength: node.content ? node.content.length : 0,
-            downloadFilesCount: downloadFiles.length,
-            hasRunninghubOutput: !!runninghubOutput
-        });
         
         const nodeColors = getNodeTypeColor(node.type);
         
@@ -1729,10 +1732,11 @@ if (node.type === 'resize') return renderMultiAngleNode();
                         >
                             <span className="text-[10px]" style={{ color: nodeColors.primary }}>R</span>
                         </div>
-                        <span className="text-xs font-medium text-white/90">RunningHub 结果</span>
+                        <span className="text-xs font-medium text-white/90">
+                            RunningHub 结果{isMultiImage ? ` (${allImages.length}张)` : ''}
+                        </span>
                     </div>
                     <div className="flex items-center gap-1">
-                        {/* 状态指示器 */}
                         {node.status === 'running' && (
                             <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin"></div>
                         )}
@@ -1753,21 +1757,69 @@ if (node.type === 'resize') return renderMultiAngleNode();
                 <div className="flex-1 relative overflow-hidden">
                     {hasContent ? (
                         <>
-                            {/* 结果预览 */}
-                            {node.content && (
-                                node.content.includes('.mp4') || node.content.startsWith('data:video') ? (
-                                    <video 
-                                        src={node.content} 
-                                        controls
-                                        className="w-full h-full object-contain" 
-                                    />
-                                ) : (
-                                    <img 
-                                        src={node.content} 
-                                        alt="结果" 
-                                        className="w-full h-full object-contain" 
-                                    />
-                                )
+                            {/* 多图片画廊 */}
+                            {isMultiImage ? (
+                                <div className="w-full h-full overflow-auto">
+                                    <div className="grid grid-cols-2 gap-1 p-1">
+                                        {allImages.map((imgUrl: string, index: number) => (
+                                            <img
+                                                key={index}
+                                                src={imgUrl}
+                                                alt={`结果 ${index + 1}`}
+                                                className="w-full h-24 object-contain bg-black/20 rounded"
+                                                onError={(e) => console.error(`[CanvasNode] 图片${index}加载失败:`, imgUrl)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                /* 单张图片/视频预览 */
+                                node.content && (() => {
+                                    let contentUrl = node.content;
+                                    try {
+                                        const parsed = JSON.parse(node.content);
+                                        if (parsed && typeof parsed === 'object') {
+                                            if (Array.isArray(parsed)) {
+                                                contentUrl = parsed[0]?.fileUrl || node.content;
+                                            } else {
+                                                // 处理 {"0": {...}} 或 {"fileUrl": "..."} 格式
+                                                const values = Object.values(parsed);
+                                                if (values.length > 0) {
+                                                    if (typeof values[0] === 'object' && (values[0] as any).fileUrl) {
+                                                        contentUrl = (values[0] as any).fileUrl;
+                                                    } else if (typeof values[0] === 'string') {
+                                                        contentUrl = values[0] as string;
+                                                    } else {
+                                                        contentUrl = node.content;
+                                                    }
+                                                } else {
+                                                    contentUrl = parsed.fileUrl || node.content;
+                                                }
+                                            }
+                                        }
+                                    } catch (e) {
+                                        contentUrl = node.content;
+                                    }
+
+                                    const isVideo = contentUrl.includes('.mp4') || contentUrl.startsWith('data:video');
+                                    if (isVideo) {
+                                        return (
+                                            <video
+                                                src={contentUrl}
+                                                controls
+                                                className="w-full h-full object-contain"
+                                            />
+                                        );
+                                    }
+                                    return (
+                                        <img
+                                            src={contentUrl}
+                                            alt="结果"
+                                            className="w-full h-full object-contain"
+                                            onError={(e) => console.error('[CanvasNode] 图片加载失败:', contentUrl)}
+                                        />
+                                    );
+                                })()
                             )}
                             
                             {/* 下载按钮 */}
@@ -1776,11 +1828,22 @@ if (node.type === 'resize') return renderMultiAngleNode();
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            downloadFiles.forEach(file => {
-                                                if (file.fileUrl) {
-                                                    window.open(file.fileUrl, '_blank');
+                                            let files = downloadFiles;
+                                            if (typeof downloadFiles === 'string') {
+                                                try {
+                                                    files = JSON.parse(downloadFiles);
+                                                } catch (err) {
+                                                    console.error('[CanvasNode] 解析 downloadFiles 失败:', err);
+                                                    files = [];
                                                 }
-                                            });
+                                            }
+                                            if (Array.isArray(files)) {
+                                                files.forEach((file: any) => {
+                                                    if (file.fileUrl) {
+                                                        window.open(file.fileUrl, '_blank');
+                                                    }
+                                                });
+                                            }
                                         }}
                                         className="w-full py-2 rounded-lg text-xs font-medium transition-colors backdrop-blur-md"
                                         style={{ 

@@ -6,6 +6,7 @@ import { CanvasListItem } from '../services/api/canvas';
 import { CreativeIdea } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
 import RunningHubNodeModal from '../Modals/RunningHubNodeModal';
+import { configService } from '../../services/configService';
 
 // RUNNINGHUB功能面板组件
 import RunningHubFunctionsPanel from '../RunningHubFunctionsPanel';
@@ -68,14 +69,61 @@ const Sidebar: React.FC<SidebarProps> = ({
     const [hoverButtonName, setHoverButtonName] = useState(buttonName);
     const [runningHubConfig, setRunningHubConfig] = useState<{
         apiKey?: string;
-    }>(() => {
-        try {
-            const config = localStorage.getItem('runningHubConfig');
-            return config ? JSON.parse(config) : {};
-        } catch {
-            return {};
+    }>({});
+    const [isConfigInitialized, setIsConfigInitialized] = useState(false);
+    const [configError, setConfigError] = useState<string | null>(null);
+
+    // 组件挂载后初始化配置服务
+    useEffect(() => {
+        const initializeConfig = async () => {
+            try {
+                console.log('[Sidebar] 正在初始化配置服务...');
+                await configService.initialize();
+                setIsConfigInitialized(true);
+                setConfigError(null);
+                console.log('[Sidebar] ✅ 配置服务初始化成功');
+            } catch (error) {
+                console.error('[Sidebar] ❌ 配置服务初始化失败:', error);
+                setConfigError(error instanceof Error ? error.message : '配置服务初始化失败');
+                setIsConfigInitialized(false);
+            }
+        };
+        
+        initializeConfig();
+    }, []);
+
+    // 在初始化完成后读取配置
+    useEffect(() => {
+        if (isConfigInitialized) {
+            try {
+                console.log('[Sidebar] 开始读取RunningHub配置...');
+                
+                // 详细的配置读取调试
+                const runningHubConfig = configService.getRunningHubConfig();
+                console.log('[Sidebar] 原始RunningHub配置:', runningHubConfig);
+                
+                const apiConfig = configService.getApiConfig('runninghub');
+                console.log('[Sidebar] API配置详情:', {
+                    enabled: apiConfig?.enabled,
+                    hasApiKey: !!apiConfig?.apiKey,
+                    apiKeyLength: apiConfig?.apiKey?.length || 0,
+                    baseUrl: apiConfig?.baseUrl
+                });
+                
+                setRunningHubConfig(apiConfig ? { apiKey: apiConfig.apiKey } : {});
+                
+                console.log('[Sidebar] ✅ RunningHub配置读取成功:', {
+                    hasApiKey: !!apiConfig?.apiKey,
+                    baseUrl: apiConfig?.baseUrl,
+                    enabled: apiConfig?.enabled
+                });
+            } catch (error) {
+                console.error('[Sidebar] ❌ 获取RunningHub配置失败:', error);
+                setRunningHubConfig({});
+                setConfigError(error instanceof Error ? error.message : '获取RunningHub配置失败');
+            }
         }
-    });
+    }, [isConfigInitialized]);
     const [showConfigModal, setShowConfigModal] = useState(false);
   const [, setButtonName] = useState(buttonName);
   const [showInputModal, setShowInputModal] = useState<{
@@ -190,17 +238,16 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   // 处理RUNNINGHUB功能选择
-  const handleRunningHubFunctionSelect = useCallback((func: RunningHubFunction) => {
-    console.log('[Sidebar] 选择RunningHub功能:', func.name, func.webappId);
-    
+const handleRunningHubFunctionSelect = useCallback((func: RunningHubFunction) => {
+    console.log('[Sidebar] 选择RunningHub功能:', func.name, func.id);
+
     // 创建新的RunningHub节点
     const newNodeData: NodeData = {
       type: 'runninghub',
       content: func.name,
       position: { x: 200 + Math.random() * 300, y: 200 + Math.random() * 200 },
       title: func.name,
-      webappId: func.webappId,
-      apiKey: runningHubConfig.apiKey || '',
+      id: func.id,
       inputFields: [],
       onOpenConfig: () => {
         console.log('[Sidebar] 打开RunningHub配置');
@@ -209,10 +256,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         console.log('[Sidebar] RunningHub任务完成:', output);
       },
     };
-    
+
     onAdd('runninghub', func.name, { x: 200 + Math.random() * 300, y: 200 + Math.random() * 200 }, func.name, newNodeData);
     console.log('[Sidebar] 已创建RunningHub节点');
-  }, [onAdd, runningHubConfig.apiKey]);
+  }, [onAdd]);
 
   // 添加节点时先获取节点信息
 
@@ -308,6 +355,31 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <div className="w-5 h-5 flex items-center justify-center text-lg">🚀</div>
                 </button>
             </div>
+            
+            {/* RunningHub配置状态指示器 */}
+            {!isConfigInitialized && (
+                <div className="mb-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                    <div className="text-xs text-yellow-400 text-center">
+                        {configError ? `配置错误: ${configError}` : '正在初始化配置...'}
+                    </div>
+                </div>
+            )}
+            
+            {isConfigInitialized && configError && (
+                <div className="mb-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <div className="text-xs text-red-400 text-center">
+                        配置错误: {configError}
+                    </div>
+                </div>
+            )}
+            
+            {isConfigInitialized && !configError && runningHubConfig.apiKey && (
+                <div className="mb-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <div className="text-xs text-green-400 text-center">
+                        ✅ RunningHub已配置
+                    </div>
+                </div>
+            )}
             
             {/* RunningHub功能面板 */}
             <RunningHubPanel
@@ -971,7 +1043,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       apiKey: apiKey.trim()
                     };
                     setRunningHubConfig(updatedConfig);
-                    localStorage.setItem('runningHubConfig', JSON.stringify(updatedConfig));
+                    // 不再保存到localStorage，因为现在从configService读取全局配置
                     setShowConfigModal(false);
                   }}
                   className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-medium transition-all"

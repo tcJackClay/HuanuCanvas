@@ -3,6 +3,7 @@ import { ThirdPartyApiConfig } from '../../../shared/types';
 import { useTheme, ThemeName } from '../../contexts/ThemeContext';
 import { SoraConfig, getSoraConfig, saveSoraConfig } from '../../services/ai/soraService';
 import { VeoConfig, getVeoConfig, saveVeoConfig } from '../../services/ai/veoService';
+import { configService } from '../../services/configService';
 import { Eye as EyeIcon, EyeOff as EyeOffIcon, Check, X, RefreshCw, Moon as MoonIcon, Sun as SunIcon, Save as SaveIcon, Cpu as CpuIcon, Folder as FolderIcon, ExternalLink as ExternalLinkIcon } from 'lucide-react';
 
 // 应用版本号 - 从vite构建时注入，来源于package.json
@@ -121,19 +122,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const savedVeoConfig = getVeoConfig();
       setVeoConfig({ ...savedVeoConfig, baseUrl: savedVeoConfig.baseUrl || 'https://ai.t8star.cn' });
       
-      // 加载 RunningHub 配置
-      const savedRunningHubConfig = localStorage.getItem('runningHubConfig');
-      if (savedRunningHubConfig) {
-        try {
-          const parsedConfig = JSON.parse(savedRunningHubConfig);
-          // 加载完整配置，webappId可能来自按钮菜单设置
+      // 加载 RunningHub 配置 - 从configService读取全局配置
+      try {
+        const runningHubConfig = configService.getRunningHubConfig();
+        if (runningHubConfig) {
           setRunningHubConfig({
-            webappId: parsedConfig.webappId || '',
-            apiKey: parsedConfig.apiKey || ''
+            webappId: '', // RunningHub不再使用统一的webappId
+            apiKey: runningHubConfig.apiKey || ''
           });
-        } catch (error) {
-          console.error('Failed to parse RunningHub config:', error);
         }
+      } catch (error) {
+        console.error('Failed to load RunningHub config:', error);
       }
       
       // 获取存储路径
@@ -146,16 +145,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, [isOpen]);
 
-  // 保存 RunningHub 配置
+  // 保存 RunningHub 配置 - 现在从configService读取全局配置，不需要本地保存
   const handleSaveRunningHubConfig = () => {
-    // 不需要保存全局webappId
-    const existingConfig = JSON.parse(localStorage.getItem('runningHubConfig') || '{}');
-    const updatedConfig = {
-      ...existingConfig,
-      apiKey: runningHubConfig.apiKey
-    };
-    localStorage.setItem('runningHubConfig', JSON.stringify(updatedConfig));
-    setSaveSuccessMessage('RunningHub 配置已保存');
+    // RunningHub配置现在从全局配置读取，不再需要本地保存
+    setSaveSuccessMessage('RunningHub 配置已从全局配置加载');
     setTimeout(() => setSaveSuccessMessage(null), 2000);
   };
 

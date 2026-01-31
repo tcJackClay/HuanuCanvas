@@ -19,26 +19,25 @@ class RunningHubService {
   }
 
   /**
-   * 发送HTTP请求到RunningHub API (按照官方Python实现简化)
+   * 简化的RunningHub API请求（按照官方Python实现）
+   * 不使用Authorization头，API Key在URL参数或请求体中
    * @param {string} endpoint - API端点
    * @param {object} data - 请求数据
-   * @param {string} apiKey - API密钥
    * @param {string} method - HTTP方法 (GET或POST)
    * @returns {Promise<object>} - API响应
    */
-  async sendRequest(endpoint, data, apiKey, method = 'POST') {
-    const effectiveApiKey = apiKey || this.defaultApiKey;
+  async sendRequestSimple(endpoint, data, method = 'POST') {
     const url = `${this.apiBaseUrl}${endpoint}`;
     
-    console.log(`[RunningHub] ${method} ${endpoint}`);
+    console.log(`[RunningHub] Simple ${method} ${endpoint}`);
 
     return new Promise((resolve, reject) => {
       const options = {
         method: method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${effectiveApiKey}`,
           'Host': 'www.runninghub.cn'
+          // 不使用Authorization头，按照官方文档
         }
       };
 
@@ -150,8 +149,9 @@ class RunningHubService {
       };
       console.log('[RunningHub] 🚨 最终提交给RunningHub的数据:', JSON.stringify(requestData, null, 2));
       
-      // 根据文档，提交任务的端点是/task/openapi/ai-app/run
-      const response = await this.sendRequest('/task/openapi/ai-app/run', requestData, apiKey);
+      // 根据官方文档，提交任务的端点是 /task/openapi/ai-app/run
+      // 使用简化的请求方式，不带Authorization头
+      const response = await this.sendRequestSimple('/task/openapi/ai-app/run', requestData, 'POST');
       console.log('[RunningHub] 任务提交响应:', JSON.stringify(response, null, 2));
       return response;
     } catch (error) {
@@ -180,9 +180,8 @@ class RunningHubService {
       // 按照官方Python实现，简化参数处理
       console.log('[RunningHub] 查询任务状态:', { taskId, hasApiKey: !!effectiveApiKey });
       
-      // 注意：任务状态查询可能需要不同的处理方式
-      // 暂时使用相同的认证方式，但可能需要不同的端点
-      const response = await this.sendRequest('/task/openapi/status', requestData, apiKey);
+      // 使用简化的请求方式，查询任务结果端点 /task/openapi/outputs
+      const response = await this.sendRequestSimple('/task/openapi/outputs', requestData, 'POST');
       
       // 检查响应中的错误
       if (response.code === 805 || response.error?.includes('APIKEY')) {
@@ -230,6 +229,7 @@ class RunningHubService {
 
   /**
    * 从RunningHub响应中提取文件路径
+   * 根据官方文档，返回的 fileName 格式为 "api/xxx.jpg"，需要保持原格式
    * @param {object} response - RunningHub响应
    * @returns {string|null} - 文件路径
    */
@@ -255,75 +255,47 @@ class RunningHubService {
       response?.url
     ];
     
-    console.log('[RunningHub] 🔍 开始提取文件路径，响应结构分析:', {
-      responseType: typeof response,
-      hasThirdPartyResponse: !!response?.thirdPartyResponse,
-      thirdPartyResponseType: typeof response?.thirdPartyResponse,
-      hasData: !!response?.data,
-      dataType: typeof response?.data,
-      responseKeys: Object.keys(response || {}),
-      thirdPartyKeys: Object.keys(response?.thirdPartyResponse || {}),
-      dataKeys: Object.keys(response?.data || {}),
-      tryingPaths: possiblePaths.map((path, i) => `${i}: ${path}`).filter(Boolean)
-    });
-    
-    // 详细记录每个可能的路径值
-    possiblePaths.forEach((path, index) => {
-      const hasValue = !!(path && typeof path === 'string' && path.trim() !== '');
-      console.log(`[RunningHub] 路径尝试 ${index}: ${path || 'undefined/null'} ${hasValue ? '✅' : '❌'}`);
-    });
-    
     for (const path of possiblePaths) {
       if (path && typeof path === 'string' && path.trim() !== '') {
+        // RunningHub 返回的 fileName 格式为 "api/xxx.jpg"
+        // 保持原格式，不添加前导 /
         const hasApiPrefix = path.startsWith('api/');
-        console.log(`[RunningHub] ✅ 成功提取到文件路径: ${path}`);
-        console.log(`[RunningHub] 📊 路径分析:`, {
-          pathLength: path.length,
-          hasApiPrefix: hasApiPrefix,
-          isAbsoluteUrl: path.startsWith('http'),
-          pathType: typeof path
-        });
+        const hasHttpPrefix = path.startsWith('http://') || path.startsWith('https://');
+        const hasLeadingSlash = path.startsWith('/');
         
-        // 清理不必要的 "api/" 前缀，确保传递给RunningHub的路径格式正确
         let cleanedPath = path;
-        if (hasApiPrefix) {
-          console.log(`[RunningHub] 🧹 清理路径前缀: ${path} → ${cleanedPath.substring(4)}`);
-          cleanedPath = cleanedPath.substring(4);
+        
+        if (hasHttpPrefix) {
+          // 已经是完整 URL，保持不变
+          cleanedPath = path;
+        } else if (hasApiPrefix) {
+          // 已有 api/ 前缀，保持原格式（官方文档格式）
+          cleanedPath = path;  // api/xxx.jpg → api/xxx.jpg ✅
+        } else if (hasLeadingSlash) {
+          // 只有前导 /，没有 api/ 前缀，添加 api/ 前缀
+          cleanedPath = 'api' + path;  // /xxx.jpg → api/xxx.jpg
+        } else {
+          // 没有前缀，添加 api/ 前缀
+          cleanedPath = 'api/' + path;  // xxx.jpg → api/xxx.jpg
         }
         
-        console.log(`[RunningHub] 📋 最终返回的清理后路径: ${cleanedPath}`);
+        console.log(`[RunningHub] ✅ 成功提取到文件路径: ${path} → ${cleanedPath}`);
         return cleanedPath;
       }
     }
     
-    console.error('[RunningHub] ❌ 未找到有效的文件路径，详细分析:', {
-      fullResponse: JSON.stringify(response, null, 2),
-      attemptedPaths: possiblePaths,
-      responseStructure: {
-        hasResponse: !!response,
-        responseKeys: Object.keys(response || {}),
-        hasThirdPartyResponse: !!response?.thirdPartyResponse,
-        thirdPartyKeys: Object.keys(response?.thirdPartyResponse || {}),
-        hasData: !!response?.data,
-        dataKeys: Object.keys(response?.data || {})
-      },
-      possibleIssues: [
-        'RunningHub API响应格式可能已更改',
-        '文件路径字段名可能不正确',
-        '响应可能包含嵌套结构'
-      ]
-    });
+    console.error('[RunningHub] ❌ 未找到有效的文件路径');
     return null;
   }
 
-  /**
-   * 上传文件到RunningHub (按照官方Python实现简化)
-   * @param {Buffer} fileBuffer - 文件内容
-   * @param {string} fileName - 文件名
-   * @param {string} fileType - 文件类型
-   * @param {string} apiKey - API密钥
-   * @returns {Promise<object>} - 上传结果
-   */
+/**
+    * 上传文件到RunningHub (按照官方Python实现简化)
+    * @param {Buffer} fileBuffer - 文件内容
+    * @param {string} fileName - 文件名
+    * @param {string} fileType - 文件类型
+    * @param {string} apiKey - API密钥
+    * @returns {Promise<object>} - 上传结果
+    */
   async uploadFileFromBuffer(fileBuffer, fileName, fileType, apiKey) {
     try {
       const effectiveApiKey = apiKey || this.defaultApiKey;
@@ -332,49 +304,66 @@ class RunningHubService {
         fileName, 
         fileType, 
         size: fileBuffer.length,
-        apiKey: effectiveApiKey ? effectiveApiKey.substring(0, 8) + '...' : '未提供'
       });
 
-      // 构建简单的表单数据 (按照官方Python实现)
+      // 构建 multipart/form-data (使用 Buffer 正确处理二进制数据)
       const boundary = `----WebKitFormBoundary${Math.random().toString(36).substring(2)}`;
-      const formData = [
-        `--${boundary}`,
-        `Content-Disposition: form-data; name="file"; filename="${fileName}"`,
-        `Content-Type: application/octet-stream`,
-        ``,
-        fileBuffer.toString(),
-        `--${boundary}`,
-        `Content-Disposition: form-data; name="fileType"`,
-        ``,
-        fileType,
-        `--${boundary}`,
-        `Content-Disposition: form-data; name="apiKey"`,
-        ``,
-        effectiveApiKey,
-        `--${boundary}--`
-      ].join('\r\n');
       
-      // 直接调用官方API端点
+      // 文件头部分
+      const fileHeader = Buffer.from(
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+        `Content-Type: application/octet-stream\r\n\r\n`
+      );
+      
+      // 文件类型部分
+      const fileTypePart = Buffer.from(
+        `\r\n--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="fileType"\r\n\r\n` +
+        `${fileType}`
+      );
+      
+      // API Key 部分
+      const apiKeyPart = Buffer.from(
+        `\r\n--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="apiKey"\r\n\r\n` +
+        `${effectiveApiKey}\r\n--${boundary}--`
+      );
+
+      // 正确拼接：文件头 + 文件内容（二进制） + 文件类型 + API Key
+      const formData = Buffer.concat([
+        fileHeader,
+        fileBuffer,
+        fileTypePart,
+        apiKeyPart
+      ]);
+
+      // 调用上传 API
       const url = `${this.apiBaseUrl}/task/openapi/upload`;
       
-      return await this.uploadWithSimpleRequest(url, formData, boundary);
+      return await this.uploadWithBufferRequest(url, formData, boundary, formData.length);
     } catch (error) {
       console.error('[RunningHub] 文件上传失败:', error);
       throw error;
     }
   }
 
-  async uploadWithSimpleRequest(url, formData, boundary) {
+async uploadWithBufferRequest(url, formData, boundary, contentLength) {
     return new Promise((resolve, reject) => {
+      const urlObj = new URL(url);
+      
       const options = {
+        hostname: urlObj.hostname,
+        path: urlObj.pathname,
         method: 'POST',
         headers: {
           'Host': 'www.runninghub.cn',
-          'Content-Type': `multipart/form-data; boundary=${boundary}`
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Length': contentLength
         }
       };
 
-      const req = https.request(url, options, (res) => {
+      const req = https.request(options, (res) => {
         let responseData = '';
 
         res.on('data', (chunk) => {
@@ -386,7 +375,7 @@ class RunningHubService {
             const parsed = JSON.parse(responseData);
             console.log('[RunningHub] 文件上传响应:', parsed);
             
-            // 标准化响应格式，保持与官方Python一致
+            // 标准化响应格式
             const normalizedResponse = {
               success: parsed.success !== false,
               data: parsed.data || parsed,
@@ -407,7 +396,7 @@ class RunningHubService {
         reject(error);
       });
 
-      // 写入表单数据
+      // 写入二进制表单数据
       req.write(formData);
       req.end();
     });
@@ -451,13 +440,12 @@ class RunningHubService {
         hasApiKey: !!effectiveApiKey 
       });
       
-      // 根据API文档，调用 /api/webapp/apiCallDemo 端点（GET请求）
-      const requestData = {
-        webappId: webappId,
-        apiKey: effectiveApiKey
-      };
+      // 根据官方文档，GET请求：/api/webapp/apiCallDemo?apiKey={apiKey}&webappId={webappId}
+      // 不使用Authorization头，API Key在URL参数中
+      const url = `/api/webapp/apiCallDemo?apiKey=${effectiveApiKey}&webappId=${webappId}`;
+      console.log('[RunningHub] GET请求URL:', url.replace(effectiveApiKey, '***API_KEY***'));
       
-      const response = await this.sendRequest('/api/webapp/apiCallDemo', requestData, effectiveApiKey, 'GET');
+      const response = await this.sendRequestSimple(url, null, 'GET');
       
       console.log('[RunningHub] 节点信息响应:', {
         code: response.code,

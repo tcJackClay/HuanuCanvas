@@ -23,7 +23,6 @@ export interface AppConfig {
       enabled: boolean;
       apiKey: string;
       baseUrl: string;
-      defaultWebappId?: string;
     };
     thirdParty: {
       enabled: boolean;
@@ -77,7 +76,7 @@ class ViteConfigManager {
   private config: AppConfig | null = null;
   private watchers: ConfigChangeCallback[] = [];
   private isWatching = false;
-  private configPath = '/src/data/app-config.json';
+  private configPath = './app-config.json';
 
   /**
    * 获取配置
@@ -387,8 +386,7 @@ class ViteConfigManager {
         runninghub: {
           enabled: false,
           apiKey: '',
-          baseUrl: 'https://api.runninghub.com',
-          webappId: ''
+          baseUrl: 'https://www.runninghub.cn'
         },
         thirdParty: {
           enabled: false,

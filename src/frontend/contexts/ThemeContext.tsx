@@ -224,7 +224,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 export const useTheme = (): ThemeContextValue => {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    return {
+      theme: darkTheme,
+      themeName: 'dark',
+      setTheme: () => {},
+      allThemes: Object.values(themes),
+    };
   }
   return context;
 };

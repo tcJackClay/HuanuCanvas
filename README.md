@@ -39,6 +39,25 @@ npm run electron:dev
 - **桌面框架**: Electron 31+
 - **后端服务**: Node.js + Express
 - **AI集成**: Google Gemini API
+- **Python支持**: Flask + Requests (辅助脚本)
+
+### 📋 **依赖安装**
+
+#### Node.js 依赖
+```bash
+npm install
+```
+
+#### Python 依赖 (可选)
+```bash
+pip install -r requirements.txt
+```
+
+#### 后端依赖
+```bash
+cd src/backend
+npm install
+```
 
 ---
 

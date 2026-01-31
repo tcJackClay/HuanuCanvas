@@ -8,14 +8,16 @@ export interface ThirdPartyApiConfig {
   timeout?: number;
 }
 
+// 导入配置服务
+import { getApiConfig } from './configService';
+
 /**
  * Get API configuration
  */
-export function getApiConfig(): ThirdPartyApiConfig {
-  // TODO: 实现从配置文件获取API配置
+export function getApiConfigLegacy(): ThirdPartyApiConfig {
   return {
     apiKey: '',
-    baseUrl: 'https://api.runninghub.com'
+    baseUrl: 'https://www.runninghub.cn'
   };
 }
 

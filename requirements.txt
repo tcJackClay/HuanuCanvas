@@ -1,0 +1,9 @@
+# Python Dependencies for HuanuCanvas
+# This file lists Python package dependencies used by the project.
+# Install with: pip install -r requirements.txt
+
+flask>=2.3.0
+requests>=2.31.0
+
+# Optional dependencies for specific features
+# werkzeug>=3.0.0  # Flask dependency (auto-installed)

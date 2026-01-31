@@ -15,6 +15,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "jest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:runninghub:comprehensive": "node test-runninghub-comprehensive.cjs",
+    "test:runninghub:backend": "node scripts/test-runninghub.cjs",
+    "test:runninghub:frontend": "npx playwright test tests/playwright-runninghub.spec.js",
+    "test:runninghub:all": "concurrently \"npm run test:runninghub:backend\" \"npm run test:runninghub:frontend\"",
     "install:linux": "bash install-linux.sh",
     "build:linux": "npm run build && npm run electron:build",
     "dev:linux": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
@@ -55,6 +61,7 @@
     "three": "^0.182.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.0",
     "@testing-library/jest-dom": "^6.4.0",
     "@testing-library/react": "^16.0.0",
     "@types/jest": "^29.5.14",

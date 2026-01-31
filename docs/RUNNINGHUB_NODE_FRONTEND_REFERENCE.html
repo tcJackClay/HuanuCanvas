@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>RunningHub 节点动态渲染示例</title>
+  <meta name="description" content="RunningHub AI 应用节点配置前端参考实现" />
+  <style>
+    :root {
+      --primary-color: #4a90e2;
+      --primary-hover: #357abd;
+      --success-color: #52c41a;
+      --danger-color: #ff4d4f;
+      --bg-color: #f8f8f8;
+      --card-bg: #fff;
+      --border-color: #e8e8e8;
+      --shadow: 0 2px 8px rgba(0,0,0,0.1);
+      --radius: 10px;
+    }
+
+    body {
+      font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: var(--bg-color);
+      color: #333;
+      line-height: 1.6;
+    }
+
+    h1, h2, h3 {
+      color: #1a1a1a;
+      margin-top: 0;
+    }
+
+    .main-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .content-wrapper {
+      display: flex;
+      gap: 30px;
+      align-items: flex-start;
+    }
+
+    .left-panel {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .right-panel {
+      width: 400px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 20px;
+    }
+
+    .control-panel {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .input-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .input-field label {
+      font-weight: 600;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .input-field input[type="text"] {
+      width: 280px;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+
+    .input-field input[type="text"]:focus {
+      border-color: var(--primary-color);
+      outline: none;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-success {
+      background-color: var(--success-color);
+      color: #fff;
+    }
+
+    .node-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+      transition: box-shadow 0.3s;
+    }
+
+    .node-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .node-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .node-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .node-meta {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .node-description {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 12px;
+      padding: 8px;
+      background: #f5f5f5;
+      border-radius: 4px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: #555;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary-color);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    select.form-control {
+      cursor: pointer;
+    }
+
+    .image-upload-area {
+      position: relative;
+      width: 100%;
+      min-height: 150px;
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+      background-color: #fafafa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .image-upload-area:hover {
+      border-color: var(--primary-color);
+      background-color: #f0f7ff;
+    }
+
+    .image-upload-area img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .image-upload-area .placeholder {
+      color: #999;
+      font-size: 14px;
+    }
+
+    .image-upload-area input[type="file"] {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .cover-container {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 15px;
+      box-shadow: var(--shadow);
+    }
+
+    .cover-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .cover-badge {
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    .cover-image {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+    }
+
+    .result-container {
+      margin-top: 15px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+
+    .result-item {
+      margin-bottom: 15px;
+    }
+
+    .result-item img,
+    .result-item video {
+      width: 100%;
+      border-radius: 6px;
+      margin-top: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .result-link {
+      color: var(--primary-color);
+      text-decoration: none;
+    }
+
+    .result-link:hover {
+      text-decoration: underline;
+    }
+
+    .error-message {
+      color: var(--danger-color);
+      padding: 10px;
+      background: #fff2f0;
+      border-radius: 6px;
+      border: 1px solid #ffccc7;
+    }
+
+    .run-button {
+      width: 100%;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, var(--primary-color), #667eea);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 20px;
+    }
+
+    .run-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+    }
+
+    .run-button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    @media (max-width: 900px) {
+      .content-wrapper {
+        flex-direction: column;
+      }
+      .right-panel {
+        width: 100%;
+        position: static;
+      }
+      .input-field input[type="text"] {
+        width: 200px;
+      }
+    }
+
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+<div class="main-container">
+  <div class="control-panel">
+    <div class="input-group">
+      <div class="input-field">
+        <label>API Key</label>
+        <input type="text" id="apiKeyInput" placeholder="请输入 RunningHub API Key" />
+      </div>
+      <div class="input-field">
+        <label>WebAppId</label>
+        <input type="text" id="webappIdInput" placeholder="请输入 WebAppId" />
+      </div>
+      <button id="fetchBtn" class="btn btn-primary">获取节点信息</button>
+    </div>
+  </div>
+
+  <div class="content-wrapper">
+    <div class="left-panel">
+      <div id="nodesContainer"></div>
+      <button id="runBtn" class="run-button" disabled>运行 AI 应用</button>
+    </div>
+
+    <div class="right-panel">
+      <div class="cover-container">
+        <div class="cover-header">
+          <span style="font-weight: 600;">应用封面</span>
+          <span class="cover-badge">封面图</span>
+        </div>
+        <img id="coverImage" class="cover-image" src="" alt="封面" />
+      </div>
+      <div id="resultContainer"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let API_KEY = "";
+let currentWebAppId = "";
+let nodeInfoList = [];
+let isRunning = false;
+
+const apiKeyInput = document.getElementById("apiKeyInput");
+const webappIdInput = document.getElementById("webappIdInput");
+const fetchBtn = document.getElementById("fetchBtn");
+const runBtn = document.getElementById("runBtn");
+const nodesContainer = document.getElementById("nodesContainer");
+const coverImage = document.getElementById("coverImage");
+const resultContainer = document.getElementById("resultContainer");
+const DEFAULT_IMAGE = "";
+
+function initEventListeners() {
+  fetchBtn.addEventListener("click", handleFetchNodeInfo);
+  runBtn.addEventListener("click", handleRunApp);
+}
+
+async function handleFetchNodeInfo() {
+  API_KEY = apiKeyInput.value.trim();
+  currentWebAppId = webappIdInput.value.trim();
+
+  if (!currentWebAppId) {
+    alert("请输入 WebAppId");
+    return;
+  }
+
+  fetchBtn.textContent = "加载中...";
+  fetchBtn.disabled = true;
+
+  try {
+    const response = await fetch("/get_node_info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        apiKey: API_KEY,
+        webappId: currentWebAppId
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.code !== 0) {
+      throw new Error(result.msg || "获取节点信息失败");
+    }
+
+    nodeInfoList = result.data.nodeInfoList || [];
+    console.log("节点信息:", nodeInfoList);
+
+    if (result.data?.covers?.length > 0) {
+      coverImage.src = result.data.covers[0].thumbnailUri;
+    } else {
+      coverImage.src = DEFAULT_IMAGE;
+    }
+
+    renderNodeInfoList();
+    runBtn.disabled = false;
+
+  } catch (err) {
+    console.error("获取节点信息失败:", err);
+    alert("获取节点信息失败: " + err.message);
+  } finally {
+    fetchBtn.textContent = "获取节点信息";
+    fetchBtn.disabled = false;
+  }
+}
+
+function renderNodeInfoList() {
+  nodesContainer.innerHTML = "";
+  nodeInfoList.forEach((node, index) => {
+    const nodeCard = createNodeCard(node, index);
+    nodesContainer.appendChild(nodeCard);
+  });
+}
+
+function createNodeCard(node, index) {
+  const card = document.createElement("div");
+  card.className = "node-card";
+
+  const header = document.createElement("div");
+  header.className = "node-header";
+  header.innerHTML = `
+    <span class="node-title">${node.nodeName}</span>
+    <span class="node-meta">ID: ${node.nodeId}</span>
+  `;
+  card.appendChild(header);
+
+  if (node.description) {
+    const desc = document.createElement("div");
+    desc.className = "node-description";
+    desc.textContent = node.description;
+    card.appendChild(desc);
+  }
+
+  const fieldGroup = document.createElement("div");
+  fieldGroup.className = "form-group";
+
+  const fieldLabel = document.createElement("label");
+  fieldLabel.textContent = `${node.fieldName} (${node.fieldType})`;
+  fieldGroup.appendChild(fieldLabel);
+
+  if (node.fieldType === "LIST") {
+    const select = createListControl(node);
+    fieldGroup.appendChild(select);
+  } else if (node.fieldType === "STRING") {
+    const textarea = createStringControl(node);
+    fieldGroup.appendChild(textarea);
+  } else if (["IMAGE", "AUDIO", "VIDEO"].includes(node.fieldType)) {
+    const mediaControl = createMediaControl(node);
+    fieldGroup.appendChild(mediaControl);
+  }
+
+  card.appendChild(fieldGroup);
+  return card;
+}
+
+function createListControl(node) {
+  const select = document.createElement("select");
+  select.className = "form-control";
+
+  let options = [];
+  try {
+    options = JSON.parse(node.fieldData || "[]");
+  } catch (e) {
+    console.error("解析 fieldData 失败:", e);
+  }
+
+  options.forEach(opt => {
+    if (opt.name && opt.index !== undefined) {
+      const option = document.createElement("option");
+      option.value = opt.index;
+      option.textContent = `${opt.name}${opt.description ? ' - ' + opt.description : ''}`;
+      if (String(opt.index) === String(node.fieldValue)) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    }
+  });
+
+  select.addEventListener("change", () => {
+    node.fieldValue = select.value;
+    console.log(`节点 ${node.nodeName} 更新:`, node.fieldValue);
+  });
+
+  return select;
+}
+
+function createStringControl(node) {
+  const textarea = document.createElement("textarea");
+  textarea.className = "form-control";
+  textarea.value = node.fieldValue || "";
+  textarea.placeholder = "请输入内容...";
+
+  textarea.addEventListener("input", () => {
+    node.fieldValue = textarea.value;
+  });
+
+  return textarea;
+}
+
+function createMediaControl(node) {
+  const uploadArea = document.createElement("div");
+  uploadArea.className = "image-upload-area";
+
+  let previewElement;
+  if (node.fieldType === "IMAGE") {
+    previewElement = document.createElement("img");
+  } else if (node.fieldType === "AUDIO") {
+    previewElement = document.createElement("audio");
+    previewElement.controls = true;
+  } else if (node.fieldType === "VIDEO") {
+    previewElement = document.createElement("video");
+    previewElement.controls = true;
+  }
+
+  if (node.fieldValue) {
+    previewElement.src = node.fieldValue;
+  }
+
+  const placeholder = document.createElement("span");
+  placeholder.className = "placeholder";
+  placeholder.textContent = `点击上传 ${node.fieldType}`;
+
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.accept = {
+    "IMAGE": "image/*",
+    "AUDIO": "audio/*",
+    "VIDEO": "video/*"
+  }[node.fieldType];
+
+  uploadArea.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      previewElement.src = ev.target.result;
+      previewElement.style.display = "block";
+      placeholder.style.display = "none";
+    };
+    reader.readAsDataURL(file);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("fileType", node.fieldType.toLowerCase());
+
+      const response = await fetch("/upload_file", {
+        method: "POST",
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const data = result.thirdPartyResponse;
+        if (data.code === 0 && data.data?.fileName) {
+          node.fieldValue = data.data.fileName;
+          console.log(`${node.fieldType} 文件路径:`, node.fieldValue);
+        }
+      } else {
+        alert("上传失败: " + result.message);
+      }
+    } catch (err) {
+      console.error("上传出错:", err);
+      alert("上传出错，请查看控制台");
+    }
+  });
+
+  const previewContainer = document.createElement("div");
+  previewContainer.style.width = "100%";
+  previewContainer.style.textAlign = "center";
+  previewElement.style.maxWidth = "100%";
+  previewElement.style.maxHeight = "200px";
+  previewElement.style.objectFit = "contain";
+
+  if (!node.fieldValue) {
+    previewElement.style.display = "none";
+  }
+
+  previewContainer.appendChild(previewElement);
+  previewContainer.appendChild(placeholder);
+  previewContainer.appendChild(fileInput);
+  uploadArea.appendChild(previewContainer);
+
+  return uploadArea;
+}
+
+async function handleRunApp() {
+  if (isRunning) return;
+
+  const nodeInfoList2 = nodeInfoList.map(node => {
+    const card = nodesContainer.querySelectorAll(".node-card")[nodeInfoList.indexOf(node)];
+    let fieldValue = node.fieldValue;
+
+    if (card) {
+      if (node.fieldType === "LIST") {
+        const select = card.querySelector("select");
+        if (select) fieldValue = select.value;
+      } else if (node.fieldType === "STRING") {
+        const textarea = card.querySelector("textarea");
+        if (textarea) fieldValue = textarea.value;
+      }
+    }
+
+    return {
+      nodeId: node.nodeId,
+      nodeName: node.nodeName,
+      fieldName: node.fieldName,
+      fieldValue: fieldValue,
+      fieldType: node.fieldType,
+      fieldData: node.fieldData,
+      description: node.description || ""
+    };
+  });
+
+  console.log("提交节点信息:", nodeInfoList2);
+
+  isRunning = true;
+  runBtn.disabled = true;
+  runBtn.textContent = "运行中...";
+
+  try {
+    const response = await fetch("/save_nodes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nodeInfoList2,
+        webappId: currentWebAppId,
+        apiKey: API_KEY
+      })
+    });
+
+    const result = await response.json();
+    console.log("运行结果:", result);
+    displayResult(result);
+
+  } catch (err) {
+    console.error("运行出错:", err);
+    displayError("运行出错: " + err.message);
+  } finally {
+    isRunning = false;
+    runBtn.disabled = false;
+    runBtn.textContent = "运行 AI 应用";
+  }
+}
+
+function displayResult(result) {
+  resultContainer.innerHTML = "";
+
+  if (result.success) {
+    const files = result.data?.images || result.data?.files || [];
+    
+    if (files.length > 0) {
+      let html = `
+        <div class="result-container">
+          <h4 style="margin: 0 0 10px;">任务 ID: ${result.taskId || "-"}</h4>
+          <p style="margin: 0 0 10px;"><strong>生成结果：</strong></p>
+      `;
+
+      files.forEach((file, index) => {
+        const url = file.fileUrl || file;
+        const type = (file.fileType || "").toLowerCase();
+        const ext = url.split(".").pop().toLowerCase();
+
+        html += `<div class="result-item">`;
+
+        if (["png", "jpg", "jpeg", "webp", "gif"].includes(type) || ["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) {
+          html += `<img src="${url}" alt="生成图片${index + 1}" />`;
+        } else if (["mp4", "mov", "avi", "webm"].includes(type) || ["mp4", "mov", "avi", "webm"].includes(ext)) {
+          html += `<video controls src="${url}"></video>`;
+        } else if (["mp3", "wav", "ogg"].includes(type) || ["mp3", "wav", "ogg"].includes(ext)) {
+          html += `<audio controls src="${url}"></audio>`;
+        } else {
+          html += `<a href="${url}" target="_blank" class="result-link">下载文件 ${index + 1}</a>`;
+        }
+
+        html += `<p><a href="${url}" target="_blank" class="result-link">打开原文件</a></p>`;
+        html += `</div>`;
+      });
+
+      html += `</div>`;
+      resultContainer.innerHTML = html;
+    } else {
+      resultContainer.innerHTML = `<div class="error-message">未检测到生成文件</div>`;
+    }
+  } else {
+    displayError(result.message || "任务执行失败");
+  }
+}
+
+function displayError(message) {
+  resultContainer.innerHTML = `<div class="error-message">${message}</div>`;
+}
+
+initEventListeners();
+</script>
+
+</body>
+</html>

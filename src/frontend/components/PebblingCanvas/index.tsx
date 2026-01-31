@@ -11,6 +11,7 @@ import PresetCreationModal from '../Modals/PresetCreationModal';
 import PresetInstantiationModal from '../Modals/PresetInstantiationModal';
 import CanvasNameBadge from './CanvasNameBadge';
 import { editImageWithGemini, chatWithThirdPartyApi, getThirdPartyConfig, ImageEditConfig } from '../../services/ai/geminiService';
+import { configService } from '../../services/configService';
 import * as canvasApi from '../../services/original-services/api/canvas';
 import { downloadRemoteToOutput } from '../../services/original-services/api/files';
 import { Icons } from '../Icons';
@@ -271,6 +272,29 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
 }) => {
   // 主题上下文
   const { theme } = useTheme();
+  
+  // --- 全局配置初始化 ---
+  const [isConfigReady, setIsConfigReady] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
+
+  // 全局配置初始化
+  useEffect(() => {
+    const initConfig = async () => {
+      try {
+        console.log('[PebblingCanvas] 正在初始化全局配置服务...');
+        await configService.initialize();
+        setIsConfigReady(true);
+        setConfigError(null);
+        console.log('[PebblingCanvas] ✅ 全局配置服务初始化成功');
+      } catch (error) {
+        console.error('[PebblingCanvas] ❌ 全局配置服务初始化失败:', error);
+        setConfigError(error instanceof Error ? error.message : '配置服务初始化失败');
+        setIsConfigReady(false);
+      }
+    };
+    
+    initConfig();
+  }, []);
 
   // --- 画布管理状态 ---
   const [currentCanvasId, setCurrentCanvasId] = useState<string | null>(null);
@@ -2274,56 +2298,65 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
       const outputNodeId = `output-${nodeId}-${Date.now()}`;
       
       // 修复节点内容设置 - 专门处理RunningHub格式
+      // 解析 downloadFiles，确保是数组格式
+      let parsedDownloadFiles: any[] = [];
+      try {
+        const rawFiles = unifiedOutput.files || [];
+        if (typeof rawFiles === 'string') {
+          parsedDownloadFiles = JSON.parse(rawFiles);
+        } else if (Array.isArray(rawFiles)) {
+          parsedDownloadFiles = rawFiles;
+        }
+      } catch (e) {
+        console.warn('[调试] 解析 downloadFiles 失败:', e);
+        parsedDownloadFiles = [];
+      }
+      
       let nodeContent = '';
-      let nodeDownloadFiles = [];
+      let nodeDownloadFiles: any[] = [];
+      let nodeAllImages: string[] = [];
       
       if (Array.isArray(unifiedOutput)) {
-          // 这不应该发生，但作为备份
           nodeContent = JSON.stringify(unifiedOutput);
           console.warn(`[调试] 意外情况：unifiedOutput仍然是数组`);
       } else if (unifiedOutput && typeof unifiedOutput === 'object') {
           // RunningHub格式：优先显示图片
-          if (unifiedOutput.images?.[0]) {
+          if (unifiedOutput.images?.length > 0) {
+              nodeAllImages = unifiedOutput.images;
               const imageUrl = unifiedOutput.images[0];
-              nodeDownloadFiles = unifiedOutput.files || [];
+              nodeDownloadFiles = parsedDownloadFiles;
               
-              // ========== 集成自适应尺寸检测 ==========
-              console.log(`[自适应] 开始检测图片尺寸: ${imageUrl.slice(0, 50)}...`);
+              // 多图片：存储所有图片URL的JSON字符串
+              nodeContent = JSON.stringify(unifiedOutput.images);
               
-              // 同步检测图片尺寸并设置节点大小
+              // 第一张用于预览和尺寸计算
+              console.log(`[调试] 设置多图片内容: ${nodeAllImages.length}张图片`);
+              console.log(`[调试] 第一张预览图: ${imageUrl.slice(0, 50)}...`);
+              console.log(`[调试] 设置下载文件: ${nodeDownloadFiles.length}个文件`);
+              
+              // 尺寸计算使用第一张图
               getImageDimensions(imageUrl).then(dimensions => {
                 const optimalSize = calculateOptimalSize(dimensions.width, dimensions.height);
-                
-                console.log(`[自适应] 图片 ${dimensions.width}x${dimensions.height} -> 节点 ${optimalSize.width}x${optimalSize.height}`);
-                
-                // 更新节点尺寸
                 updateNode(outputNodeId, {
                   width: optimalSize.width,
                   height: optimalSize.height
                 });
-                
-                console.log(`[自适应] 节点 ${outputNodeId.slice(0, 8)} 尺寸已调整为 ${optimalSize.width}x${optimalSize.height}`);
               }).catch(error => {
                 console.warn(`[自适应] 图片尺寸检测失败:`, error);
               });
-              
-              nodeContent = imageUrl;
-              console.log(`[调试] 设置图片内容: ${nodeContent.slice(0, 50)}...`);
-              console.log(`[调试] 设置下载文件: ${nodeDownloadFiles.length}个文件`);
           } else if (unifiedOutput.videos?.[0]) {
               nodeContent = unifiedOutput.videos[0];
-              nodeDownloadFiles = unifiedOutput.files || [];
+              nodeDownloadFiles = parsedDownloadFiles;
               console.log(`[调试] 设置视频内容: ${nodeContent.slice(0, 50)}...`);
           } else if (unifiedOutput.files?.length) {
               nodeContent = unifiedOutput.files[0].fileUrl;
-              nodeDownloadFiles = unifiedOutput.files;
+              nodeDownloadFiles = parsedDownloadFiles;
               console.log(`[调试] 设置文件内容: ${nodeContent.slice(0, 50)}...`);
           } else {
               nodeContent = '没有可显示的文件';
               console.warn(`[调试] 没有找到可显示的内容`);
           }
       } else {
-          // 其他格式
           nodeContent = String(unifiedOutput);
           console.log(`[调试] 设置字符串内容: ${nodeContent}`);
       }
@@ -2340,7 +2373,9 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
           status: 'completed',
           data: {
               runninghubOutput: unifiedOutput,
-              downloadFiles: nodeDownloadFiles
+              downloadFiles: nodeDownloadFiles,
+              allImages: nodeAllImages,
+              isMultiImage: nodeAllImages.length > 1
           }
       };
       
@@ -3942,6 +3977,25 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
           danger: true
       }
   ];
+
+  // 配置就绪状态检查
+  if (!isConfigReady) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-[#0a0a0f] text-white">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="text-lg font-medium mb-2">
+            {configError ? '配置加载失败' : '正在初始化配置...'}
+          </div>
+          {configError && (
+            <div className="text-red-400 text-sm max-w-md">
+              错误详情: {configError}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 

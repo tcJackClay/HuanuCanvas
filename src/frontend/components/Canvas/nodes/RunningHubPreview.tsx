@@ -1,5 +1,6 @@
 import React from 'react';
 import { Eye, Download, Loader } from 'lucide-react';
+import { normalizeImageUrl } from '../../../utils/image';
 
 interface PreviewData {
   [key: string]: any;
@@ -22,17 +23,31 @@ export const RunningHubPreview: React.FC<RunningHubPreviewProps> = ({
   const generatePreviewThumbnail = (data: any) => {
     if (!data) return null;
 
+    // 获取并标准化图片URL
+    const imageUrl = data.base64 || normalizeImageUrl(data.url);
+    const imageType = data.type || (data.url ? getImageTypeFromUrl(data.url) : 'image/jpeg');
+
     // 图片预览
-    if (data.type?.startsWith('image/') || data.base64?.startsWith('data:image/')) {
+    if (data.type?.startsWith('image/') || data.base64?.startsWith('data:image/') || data.url) {
+      console.log('[RunningHubPreview] 生成预览图:', {
+        originalUrl: data.url,
+        normalizedUrl: imageUrl,
+        type: imageType
+      });
+
       return (
         <div className="relative">
           <img
-            src={data.base64 || data.url}
+            src={imageUrl}
             alt="预览图"
             className="w-full h-32 object-cover rounded border"
+            onError={(e) => {
+              console.error('[RunningHubPreview] 预览图加载失败:', imageUrl);
+              e.currentTarget.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="#f0f0f0" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="#999" font-size="10">图片加载失败</text></svg>');
+            }}
           />
           <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-            {data.type?.split('/')[1]?.toUpperCase() || 'IMG'}
+            {data.type?.split('/')[1]?.toUpperCase() || imageType.split('/')[1]?.toUpperCase() || 'IMG'}
           </div>
         </div>
       );
@@ -43,8 +58,8 @@ export const RunningHubPreview: React.FC<RunningHubPreviewProps> = ({
       const text = typeof data === 'string' ? data : data.text;
       return (
         <div className="p-2 bg-gray-50 rounded border text-xs max-h-32 overflow-y-auto">
-          <div className="text-gray-600">{text}</div>
-        </div>
+          <div className="text-gray-</div>
+        600">{text}</div>
       );
     }
 
@@ -61,6 +76,24 @@ export const RunningHubPreview: React.FC<RunningHubPreviewProps> = ({
     }
 
     return null;
+  };
+
+  // 从URL获取图片类型
+  const getImageTypeFromUrl = (url: string): string => {
+    const ext = url.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg';
+    }
   };
 
   // 下载预览内容

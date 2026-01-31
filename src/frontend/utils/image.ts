@@ -5,7 +5,7 @@
 
 /**
  * 统一处理 imageUrl，兼容多种格式：
- * 1. 文件路径格式: /files/output/xxx.jpg
+ * 1. 本地文件路径: /files/input/xxx.jpg, /files/output/xxx.jpg
  * 2. 创意库文件路径: /files/creative_images/xxx.jpg
  * 3. 纯 base64 数据格式: /9j/4AAQ... (需要添加 data:image 前缀)
  * 4. 完整 data URL 格式: data:image/jpeg;base64,... (直接返回)
@@ -17,8 +17,8 @@ export const normalizeImageUrl = (url: string | undefined | null): string => {
   // 已经是完整的 data URL
   if (url.startsWith('data:')) return url;
   
-  // 文件路径（以 / 开头，但不是 base64）
-  if (url.startsWith('/') && !url.startsWith('/9j/') && !url.startsWith('/+')) return url;
+  // 本地文件路径（保持不变）
+  if (url.startsWith('/files/')) return url;
   
   // HTTP/HTTPS URL
   if (url.startsWith('http://') || url.startsWith('https://')) return url;

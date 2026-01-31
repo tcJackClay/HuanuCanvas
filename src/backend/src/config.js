@@ -30,20 +30,19 @@ function getRunningHubConfig() {
   const appConfigPath = path.join(BASE_DIR, 'data', 'app-config.json');
   let apiKey = '';
   let baseUrl = '';
-  let defaultWebAppId = '';
-  let functions = [];
-  
+  let runningHubConfig = null;
+
   try {
     console.log('[Config] 尝试读取配置文件:', appConfigPath);
-    
+
     if (fs.existsSync(appConfigPath)) {
       const appConfigData = fs.readFileSync(appConfigPath, 'utf8');
       const appConfig = JSON.parse(appConfigData);
-      
+
       console.log('[Config] 配置文件读取成功，开始解析配置...');
-      
+
       // 读取RunningHub API配置
-      const runningHubConfig = appConfig.apis?.runninghub;
+      runningHubConfig = appConfig.apis?.runninghub;
       if (runningHubConfig) {
         apiKey = runningHubConfig.apiKey || '';
         baseUrl = runningHubConfig.baseUrl || 'https://www.runninghub.cn';
@@ -55,27 +54,11 @@ function getRunningHubConfig() {
       } else {
         console.warn('[Config] 未找到RunningHub API配置，使用默认配置');
       }
-      
-      // 读取RunningHub功能列表
-      functions = appConfig.features?.runningHubFunctions || [];
-      if (functions.length > 0) {
-        defaultWebAppId = functions[0].webappId;
-        console.log('[Config] RunningHub功能列表读取成功:', {
-          functionCount: functions.length,
-          firstWebAppId: defaultWebAppId,
-          functionNames: functions.map(f => f.name)
-        });
-      } else {
-        console.warn('[Config] RunningHub功能列表为空');
-      }
-      
+
       console.log('[Config] 配置文件解析完成:', {
         apiKey: apiKey ? apiKey.substring(0, 8) + '...' : '未配置',
-        baseUrl,
-        defaultWebAppId,
-        functionCount: functions.length
+        baseUrl
       });
-      
     } else {
       console.error('[Config] 配置文件不存在:', appConfigPath);
     }
@@ -86,13 +69,42 @@ function getRunningHubConfig() {
       stack: error.stack
     });
   }
-  
+
   // 直接返回配置值，不使用环境变量
+  let defaultWebappId = '';
+  if (runningHubConfig && runningHubConfig.defaultWebappId) {
+    defaultWebappId = runningHubConfig.defaultWebappId;
+  }
+
   return {
     API_BASE_URL: baseUrl || 'https://www.runninghub.cn',
     DEFAULT_API_KEY: apiKey,
-    DEFAULT_WEBAPP_ID: defaultWebAppId,
+    DEFAULT_WEBAPP_ID: defaultWebappId,
   };
+}
+
+// 获取RunningHub功能列表
+function getRunningHubFunctions() {
+  const appConfigPath = path.join(BASE_DIR, 'data', 'app-config.json');
+
+  try {
+    if (fs.existsSync(appConfigPath)) {
+      const appConfigData = fs.readFileSync(appConfigPath, 'utf8');
+      const appConfig = JSON.parse(appConfigData);
+      const functions = appConfig.features?.runningHubFunctions || [];
+
+      console.log('[Config] 获取功能列表:', {
+        count: functions.length,
+        names: functions.map(f => f.name)
+      });
+
+      return functions;
+    }
+  } catch (error) {
+    console.error('[Config] 获取功能列表失败:', error.message);
+  }
+
+  return [];
 }
 
 // 配置项
@@ -101,7 +113,7 @@ const config = {
   HOST: process.env.HOST || '127.0.0.1',
   PORT: process.env.PORT || 8766,
   NODE_ENV: process.env.NODE_ENV || 'production',
-  
+
   // 目录路径（用户数据目录）
   BASE_DIR: BASE_DIR,
   INPUT_DIR: path.join(BASE_DIR, 'input'),
@@ -109,27 +121,30 @@ const config = {
   THUMBNAILS_DIR: path.join(BASE_DIR, 'thumbnails'),
   DATA_DIR: path.join(BASE_DIR, 'data'),
   CREATIVE_IMAGES_DIR: path.join(BASE_DIR, 'creative_images'),
-  
+
   // 静态资源目录
   DIST_DIR: getDistDir(),
-  
+
   // 缩略图配置
   THUMBNAIL_SIZE: 160, // 缩略图大小（像素）
   THUMBNAIL_QUALITY: 80, // 缩略图质量（JPEG）
-  
+
   // 数据文件路径
   CREATIVE_IDEAS_FILE: path.join(BASE_DIR, 'data', 'creative_ideas.json'),
   HISTORY_FILE: path.join(BASE_DIR, 'data', 'history.json'),
   SETTINGS_FILE: path.join(BASE_DIR, 'data', 'settings.json'),
   DESKTOP_ITEMS_FILE: path.join(BASE_DIR, 'data', 'desktop_items.json'),
   CANVAS_FILE: path.join(BASE_DIR, 'data', 'canvas_list.json'), // 画布列表
-  
+
   // 业务配置
   MAX_HISTORY_COUNT: 500,
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-  
+
   // RunningHub 配置
   RUNNINGHUB: getRunningHubConfig(),
 };
+
+// 导出配置和工具函数
+config.getRunningHubFunctions = getRunningHubFunctions;
 
 module.exports = config;
