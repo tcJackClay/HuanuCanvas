@@ -256,4 +256,52 @@ router.post('/generate-thumbnails', async (req, res) => {
   }
 });
 
+// 下载本地文件（通过后端代理，解决跨域问题）
+router.get('/download/:category/:filename', (req, res) => {
+  const { category, filename } = req.params;
+  
+  // 安全检查：有效的目录类别
+  const validCategories = {
+    'output': config.OUTPUT_DIR,
+    'input': config.INPUT_DIR,
+    'thumbnails': config.THUMBNAILS_DIR,
+    'canvas_images': path.join(config.BASE_DIR, 'canvas_images')
+  };
+  
+  if (!validCategories[category]) {
+    console.warn(`[Download] 无效的目录类别: ${category}`);
+    return res.status(403).json({ success: false, error: '无效的目录类别' });
+  }
+  
+  const baseDir = validCategories[category];
+  const filePath = path.join(baseDir, filename);
+  
+  // 安全检查：防止路径遍历攻击
+  const safePath = PathHelper.safePath(baseDir, filename);
+  if (!safePath) {
+    console.warn(`[Download] 路径遍历攻击尝试: ${filename}`);
+    return res.status(403).json({ success: false, error: '非法文件路径' });
+  }
+  
+  // 检查文件是否存在
+  if (!fs.existsSync(filePath)) {
+    console.warn(`[Download] 文件不存在: ${filePath}`);
+    return res.status(404).json({ success: false, error: '文件不存在' });
+  }
+  
+  console.log(`[Download] 开始下载: ${filePath}`);
+  
+  // 设置响应头触发浏览器下载
+  res.download(filePath, filename, (err) => {
+    if (err) {
+      console.error(`[Download] 下载失败: ${err.message}`);
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, error: '下载失败' });
+      }
+    } else {
+      console.log(`[Download] 下载成功: ${filename}`);
+    }
+  });
+});
+
 module.exports = router;

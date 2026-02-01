@@ -11,5 +11,31 @@
     "color": "#3b82f6",
     "createdAt": 1769713887005,
     "updatedAt": 1769713887005
+  },
+  {
+    "id": "zrfl5z2mzb",
+    "type": "folder",
+    "name": "新建文件夹",
+    "position": {
+      "x": 100,
+      "y": 0
+    },
+    "createdAt": 1769917370315,
+    "updatedAt": 1769917374808,
+    "itemIds": [],
+    "color": "#6366f1"
+  },
+  {
+    "id": "canvas-folder-canvas-1769917384937-be7t4c-1769917384971",
+    "type": "folder",
+    "name": "🎨 画布 2",
+    "position": {
+      "x": 200,
+      "y": 0
+    },
+    "itemIds": [],
+    "color": "#3b82f6",
+    "createdAt": 1769917384971,
+    "updatedAt": 1769917384971
   }
 ]

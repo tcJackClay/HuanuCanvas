@@ -17,6 +17,13 @@ const desktopRouter = require('./routes/desktop');
 const imageOpsRouter = require('./routes/imageOps');
 const canvasRouter = require('./routes/canvas');
 const runningHubRouter = require('./routes/runningHub');
+const aiRouter = require('./routes/ai');
+
+// 导入 Jimeng 路由模块
+const jimengPingRouter = require('./jimeng/api/routes/ping');
+const jimengImagesRouter = require('./jimeng/api/routes/images');
+const jimengVideosRouter = require('./jimeng/api/routes/videos');
+const jimengTokenRouter = require('./jimeng/api/routes/token');
 
 const app = express();
 
@@ -93,6 +100,15 @@ app.use('/api/desktop', desktopRouter);
 app.use('/api/image-ops', imageOpsRouter);
 app.use('/api/canvas', canvasRouter);
 app.use('/api/runninghub', runningHubRouter);
+app.use('/api/ai', aiRouter);
+
+// ============== Jimeng API 路由 ==============
+const jimengIndexRouter = require('./jimeng/api/routes/index');
+app.use('/', jimengIndexRouter);
+app.use('/ping', jimengPingRouter);
+app.use('/v1/images', jimengImagesRouter);
+app.use('/v1/videos', jimengVideosRouter);
+app.use('/', jimengTokenRouter);
 
 // 服务状态检查
 app.get('/api/status', (req, res) => {

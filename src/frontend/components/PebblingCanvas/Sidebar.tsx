@@ -50,13 +50,13 @@ interface SidebarProps {
     onManualSave?: () => void;
     autoSaveEnabled?: boolean;
     hasUnsavedChanges?: boolean;
-}
+  }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
   onDragStart, onAdd, userPresets, onAddPreset, onDeletePreset, onHome, onOpenSettings, isApiConfigured,
   canvasList, currentCanvasId, canvasName, isCanvasLoading, onCreateCanvas, onLoadCanvas, onDeleteCanvas, onRenameCanvas,
   creativeIdeas = [], onApplyCreativeIdea, onManualSave, autoSaveEnabled = false, hasUnsavedChanges = false
-}) => { 
+}) => {
   const { theme } = useTheme();
   const [activeLibrary, setActiveLibrary] = useState(false);
   const [showCanvasPanel, setShowCanvasPanel] = useState(false);
@@ -67,64 +67,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     const [showRunningHubMenu, setShowRunningHubMenu] = useState(false);
     const buttonName = localStorage.getItem('runningHubButtonName') || 'RUNNINGHUB API';
     const [hoverButtonName, setHoverButtonName] = useState(buttonName);
-    const [runningHubConfig, setRunningHubConfig] = useState<{
-        apiKey?: string;
-    }>({});
-    const [isConfigInitialized, setIsConfigInitialized] = useState(false);
-    const [configError, setConfigError] = useState<string | null>(null);
-
-    // 组件挂载后初始化配置服务
-    useEffect(() => {
-        const initializeConfig = async () => {
-            try {
-                console.log('[Sidebar] 正在初始化配置服务...');
-                await configService.initialize();
-                setIsConfigInitialized(true);
-                setConfigError(null);
-                console.log('[Sidebar] ✅ 配置服务初始化成功');
-            } catch (error) {
-                console.error('[Sidebar] ❌ 配置服务初始化失败:', error);
-                setConfigError(error instanceof Error ? error.message : '配置服务初始化失败');
-                setIsConfigInitialized(false);
-            }
-        };
-        
-        initializeConfig();
-    }, []);
-
-    // 在初始化完成后读取配置
-    useEffect(() => {
-        if (isConfigInitialized) {
-            try {
-                console.log('[Sidebar] 开始读取RunningHub配置...');
-                
-                // 详细的配置读取调试
-                const runningHubConfig = configService.getRunningHubConfig();
-                console.log('[Sidebar] 原始RunningHub配置:', runningHubConfig);
-                
-                const apiConfig = configService.getApiConfig('runninghub');
-                console.log('[Sidebar] API配置详情:', {
-                    enabled: apiConfig?.enabled,
-                    hasApiKey: !!apiConfig?.apiKey,
-                    apiKeyLength: apiConfig?.apiKey?.length || 0,
-                    baseUrl: apiConfig?.baseUrl
-                });
-                
-                setRunningHubConfig(apiConfig ? { apiKey: apiConfig.apiKey } : {});
-                
-                console.log('[Sidebar] ✅ RunningHub配置读取成功:', {
-                    hasApiKey: !!apiConfig?.apiKey,
-                    baseUrl: apiConfig?.baseUrl,
-                    enabled: apiConfig?.enabled
-                });
-            } catch (error) {
-                console.error('[Sidebar] ❌ 获取RunningHub配置失败:', error);
-                setRunningHubConfig({});
-                setConfigError(error instanceof Error ? error.message : '获取RunningHub配置失败');
-            }
-        }
-    }, [isConfigInitialized]);
-    const [showConfigModal, setShowConfigModal] = useState(false);
+     const [runningHubConfig, setRunningHubConfig] = useState<{
+         apiKey?: string;
+     }>({});
+     const [showConfigModal, setShowConfigModal] = useState(false);
   const [, setButtonName] = useState(buttonName);
   const [showInputModal, setShowInputModal] = useState<{
     type: 'setId' | 'rename' | null;
@@ -351,35 +297,9 @@ const handleRunningHubFunctionSelect = useCallback((func: RunningHubFunction) =>
                     "
                     title="RUNNINGHUB功能"
                 >
-                    {/* 🚀图标 */}
-                    <div className="w-5 h-5 flex items-center justify-center text-lg">🚀</div>
+                    <Icons.Zap size={18} className={isFunctionsPanelVisible ? 'text-orange-300' : 'text-zinc-400 group-hover:text-white'} />
                 </button>
             </div>
-            
-            {/* RunningHub配置状态指示器 */}
-            {!isConfigInitialized && (
-                <div className="mb-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                    <div className="text-xs text-yellow-400 text-center">
-                        {configError ? `配置错误: ${configError}` : '正在初始化配置...'}
-                    </div>
-                </div>
-            )}
-            
-            {isConfigInitialized && configError && (
-                <div className="mb-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                    <div className="text-xs text-red-400 text-center">
-                        配置错误: {configError}
-                    </div>
-                </div>
-            )}
-            
-            {isConfigInitialized && !configError && runningHubConfig.apiKey && (
-                <div className="mb-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-                    <div className="text-xs text-green-400 text-center">
-                        ✅ RunningHub已配置
-                    </div>
-                </div>
-            )}
             
             {/* RunningHub功能面板 */}
             <RunningHubPanel
@@ -390,10 +310,10 @@ const handleRunningHubFunctionSelect = useCallback((func: RunningHubFunction) =>
             
             {/* Library Toggle */}
             <button 
-                onClick={(e) => { e.stopPropagation(); setActiveLibrary(!activeLibrary); }}
-                className={`p-2.5 rounded-xl transition-all shadow-inner border flex items-center justify-center mb-1
-                    ${activeLibrary ? 'bg-purple-500/20 text-purple-300 border-purple-500/50' : 'bg-white/5 text-zinc-400 border-transparent hover:text-white hover:bg-white/15'}
-                `}
+                    onClick={(e) => { e.stopPropagation(); setActiveLibrary(!activeLibrary); }}
+                    className={`p-2.5 rounded-xl transition-all shadow-inner border flex items-center justify-center mb-1
+                        ${activeLibrary ? 'bg-purple-500/20 text-purple-300 border-purple-500/50' : 'bg-white/5 text-zinc-400 border-transparent hover:text-white hover:bg-white/15'}
+                    `}
                 title="Creative Library"
             >
                 <Icons.Layers size={18} />

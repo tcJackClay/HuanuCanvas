@@ -254,12 +254,12 @@ const calculateOptimalSize = (imageWidth: number, imageHeight: number) => {
 // === 画布组件开始 ===
 
 interface PebblingCanvasProps {
-  onImageGenerated?: (imageUrl: string, prompt: string, canvasId?: string, canvasName?: string) => void; // 回调同步到桌面（含画布ID用于联动）
-  onCanvasCreated?: (canvasId: string, canvasName: string) => void; // 画布创建回调（用于桌面联动创建文件夹）
-  creativeIdeas?: CreativeIdea[]; // 主项目创意库
-  isActive?: boolean; // 画布是否处于活动状态（用于快捷键作用域控制）
-  pendingImageToAdd?: { imageUrl: string; imageName?: string } | null; // 待添加的图片（从桌面添加）
-  onPendingImageAdded?: () => void; // 图片添加完成后的回调
+  onImageGenerated?: (imageUrl: string, prompt: string, canvasId?: string, canvasName?: string) => void;
+  onCanvasCreated?: (canvasId: string, canvasName: string) => void;
+  creativeIdeas?: CreativeIdea[];
+  isActive?: boolean;
+  pendingImageToAdd?: { imageUrl: string; imageName?: string } | null;
+  onPendingImageAdded?: () => void;
 }
 
 const PebblingCanvas: React.FC<PebblingCanvasProps> = ({ 
@@ -310,8 +310,11 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
   const [nodes, setNodes] = useState<CanvasNode[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   
-  // 自动保存状态（默认禁用，首次操作后启用）
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+  // 自动保存状态（从 localStorage 读取，默认为启用）
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
+    const saved = localStorage.getItem('autoSaveEnabled');
+    return saved === null || saved === 'true';
+  });
   
   // 未保存标记（用于提醒用户）
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -698,6 +701,9 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
       nodesRef.current = localizedNodes;
       setNodes(localizedNodes);
       
+      // 重置未保存状态
+      setHasUnsavedChanges(false);
+      
       lastSaveRef.current = { nodes: nodesStr, connections: connectionsStr };
       console.log('[Canvas] 自动保存');
       
@@ -895,6 +901,18 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
       });
     }
   }, [isActive, hasUnsavedChanges, saveCurrentCanvas]);
+
+  // 页面卸载前保存
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (hasUnsavedChanges && autoSaveEnabled) {
+        saveCurrentCanvas();
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges, autoSaveEnabled, saveCurrentCanvas]);
 
   // Re-check API config when settings modal closes
   const handleCloseApiSettings = () => {
@@ -1204,12 +1222,13 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
               }
           }
       }
-      if (type === 'video') { width = 400; height = 225; }
-      if (type === 'relay') { width = 40; height = 40; }
-      if (['edit', 'remove-bg', 'upscale', 'llm', 'resize'].includes(type)) { width = 280; height = 250; }
-      if (type === 'llm') { width = 320; height = 300; }
+if (type === 'video') { width = 400; height = 225; }
+if (type === 'relay') { width = 40; height = 40; }
+if (['edit', 'remove-bg', 'upscale', 'llm', 'resize'].includes(type)) { width = 280; height = 250; }
+if (type === 'llm') { width = 320; height = 300; }
+if (type === 'runninghub') { width = 320; height = 560; }
 
-      if (position) {
+if (position) {
           x = position.x;
           y = position.y;
       } else {
@@ -2207,17 +2226,162 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
 
       // 2. 检查是否已有下游节点
       const existingDownstream = connectionsRef.current.filter(c => c.fromNode === nodeId);
+
       if (existingDownstream.length > 0) {
-          console.log(`[任务完成] 节点 ${nodeId.slice(0,8)} 已有下游连接，跳过创建`);
-          return;
+          // 验证连接到的下游节点是否还存在
+          const downstreamNodeIds = existingDownstream.map(c => c.toNode);
+          const existingNodes = downstreamNodeIds.map(id => nodesRef.current.find(n => n.id === id)).filter(Boolean);
+          
+          if (existingNodes.length > 0) {
+              // 情况1：下游节点存在，更新该节点的返回内容
+              const targetNodeId = downstreamNodeIds[0];
+              console.log(`[任务完成] 节点 ${nodeId.slice(0,8)} 下游节点 ${targetNodeId.slice(0,8)} 存在，更新返回内容`);
+              
+              // 先进行数据转换（需要 unifiedOutput 和 nodeAllImages 等变量）
+              let unifiedOutput;
+              console.log(`[调试] 开始数据转换，原始输出:`, output);
+              
+              if (output.results && Array.isArray(output.results)) {
+                  const images: string[] = [];
+                  const videos: string[] = [];
+                  const files: any[] = [];
+                  
+                  output.results.forEach((item: any, index: number) => {
+                      const url = item.url;
+                      const outputType = item.outputType?.toLowerCase() || '';
+                      
+                      if (url) {
+                          const ext = url.split('/').pop()?.split('.').pop() || outputType || 'png';
+                          const fileData = {
+                              fileUrl: url,
+                              fileName: `output_${index + 1}.${ext}`,
+                              fileType: outputType || 'image'
+                          };
+                          
+                          if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(outputType)) {
+                              images.push(url);
+                          } else if (['mp4', 'mov', 'avi', 'webm'].includes(outputType)) {
+                              videos.push(url);
+                          }
+                          files.push(fileData);
+                      }
+                  });
+                  
+                  unifiedOutput = { images, videos, files };
+              } else if (Array.isArray(output)) {
+                  const images: string[] = [];
+                  const videos: string[] = [];
+                  const files: any[] = [];
+                  
+                  output.forEach((file, index) => {
+                      if (file.fileUrl) {
+                          const fileType = file.fileType?.toLowerCase() || '';
+                          const fileData = {
+                              fileUrl: file.fileUrl,
+                              fileName: file.fileName || `文件_${index + 1}`,
+                              fileType: file.fileType || 'unknown'
+                          };
+                          
+                          if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(fileType)) {
+                              images.push(file.fileUrl);
+                          } else if (['mp4', 'mov', 'avi', 'webm'].includes(fileType)) {
+                              videos.push(file.fileUrl);
+                          }
+                          files.push(fileData);
+                      }
+                  });
+                  
+                  unifiedOutput = { images, videos, files };
+              } else if (typeof output === 'string') {
+                  unifiedOutput = output;
+              } else if (output && typeof output === 'object') {
+                  if (output.images?.length > 0 || output.files?.length > 0) {
+                      const images = output.images || [];
+                      const videos = output.videos || [];
+                      const files = output.files || [];
+                      unifiedOutput = { images, videos, files };
+                  } else if (output.content) {
+                      unifiedOutput = output.content;
+                  } else if (output.result) {
+                      unifiedOutput = output.result;
+                  } else if (output.message) {
+                      unifiedOutput = output.message;
+                  } else {
+                      unifiedOutput = JSON.stringify(output);
+                  }
+              } else {
+                  unifiedOutput = String(output);
+              }
+              
+              const nodeAllImages = unifiedOutput?.images || [];
+              const nodeDownloadFiles = unifiedOutput?.files || [];
+              const nodeContent = nodeAllImages.length > 0 ? JSON.stringify(nodeAllImages) : (typeof unifiedOutput === 'string' ? unifiedOutput : '');
+              
+              updateNode(targetNodeId, {
+                  content: nodeContent,
+                  status: 'completed',
+                  data: {
+                      ...nodesRef.current.find(n => n.id === targetNodeId)?.data,
+                      runninghubOutput: unifiedOutput,
+                      downloadFiles: nodeDownloadFiles,
+                      allImages: nodeAllImages,
+                      localImages: unifiedOutput.localImages || nodeAllImages,  // 本地保存的文件路径
+                      isMultiImage: nodeAllImages.length > 1,
+                      results: output.results || []
+                  }
+              });
+              return;
+          } else {
+              // 情况2：下游节点已删除，清理无效连接
+              console.log(`[任务完成] 节点 ${nodeId.slice(0,8)} 下游节点不存在，清理连接并创建新节点`);
+              connectionsRef.current = connectionsRef.current.filter(c => c.fromNode !== nodeId);
+          }
       }
 
-      // 3. 转换数据格式为统一格式 - 专门处理RunningHub数组格式
+      // 3. 转换数据格式为统一格式
       let unifiedOutput;
       console.log(`[调试] 开始数据转换，原始输出:`, output);
       
-      // 专门处理RunningHub返回的数组格式
-      if (Array.isArray(output)) {
+      // 专门处理RunningHub返回的 { results: [...] } 格式
+      if (output.results && Array.isArray(output.results)) {
+          console.log(`[调试] 检测到 RunningHub results 格式，共 ${output.results.length} 个结果`);
+          
+          const images: string[] = [];
+          const videos: string[] = [];
+          const files: any[] = [];
+          
+          output.results.forEach((item: any, index: number) => {
+              const url = item.url;
+              const outputType = item.outputType?.toLowerCase() || '';
+              
+              if (url) {
+                  const ext = url.split('/').pop()?.split('.').pop() || outputType || 'png';
+                  const fileData = {
+                      fileUrl: url,
+                      fileName: `output_${index + 1}.${ext}`,
+                      fileType: outputType || 'image'
+                  };
+                  
+                  console.log(`[调试] 结果${index}: ${url.slice(0, 50)}..., 类型: ${outputType}`);
+                  
+                  // 根据 outputType 分类
+                  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(outputType)) {
+                      images.push(url);
+                  } else if (['mp4', 'mov', 'avi', 'webm'].includes(outputType)) {
+                      videos.push(url);
+                  }
+                  files.push(fileData);
+              }
+          });
+          
+          unifiedOutput = { images, videos, files };
+          console.log(`[调试] RunningHub results 转换完成:`, {
+              imagesCount: images.length,
+              videosCount: videos.length,
+              filesCount: files.length,
+              firstImage: images[0]?.slice(0, 50) + '...'
+          });
+      } else if (Array.isArray(output)) {
           console.log(`[调试] 检测到RunningHub数组格式，开始转换...`);
           
           const images: string[] = [];
@@ -2334,12 +2498,16 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
               console.log(`[调试] 第一张预览图: ${imageUrl.slice(0, 50)}...`);
               console.log(`[调试] 设置下载文件: ${nodeDownloadFiles.length}个文件`);
               
-              // 尺寸计算使用第一张图
+              // 尺寸计算使用第一张图 - 根据图片比例动态计算高度
               getImageDimensions(imageUrl).then(dimensions => {
-                const optimalSize = calculateOptimalSize(dimensions.width, dimensions.height);
+                const aspectRatio = dimensions.width / dimensions.height;
+                const baseWidth = 280;
+                const calculatedHeight = Math.round(baseWidth / aspectRatio);
+                const clampedHeight = Math.max(200, Math.min(500, calculatedHeight));
+                console.log(`[自适应] 图片尺寸: ${dimensions.width}x${dimensions.height}, 比例: ${aspectRatio.toFixed(2)}, 计算高度: ${clampedHeight}`);
                 updateNode(outputNodeId, {
-                  width: optimalSize.width,
-                  height: optimalSize.height
+                  width: baseWidth,
+                  height: clampedHeight
                 });
               }).catch(error => {
                 console.warn(`[自适应] 图片尺寸检测失败:`, error);
@@ -2365,18 +2533,20 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
           id: outputNodeId,
           x: node.x + node.width + 100,
           y: node.y,
-          width: 200,
-          height: 100,
+          width: 320,
+          height: 400,
           type: 'runninghub-output',
           content: nodeContent,
-          title: 'RunningHub结果',
+          title: '',
           status: 'completed',
-          data: {
-              runninghubOutput: unifiedOutput,
-              downloadFiles: nodeDownloadFiles,
-              allImages: nodeAllImages,
-              isMultiImage: nodeAllImages.length > 1
-          }
+           data: {
+                runninghubOutput: unifiedOutput,
+                downloadFiles: nodeDownloadFiles,
+                allImages: nodeAllImages,
+                localImages: unifiedOutput.localImages || nodeAllImages,  // 本地保存的文件路径
+                isMultiImage: nodeAllImages.length > 1,
+                results: output.results || []  // 保存 RunningHub 返回的原始 results
+            }
       };
       
       console.log(`[调试] 最终节点设置:`, {
@@ -2473,6 +2643,13 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
           } finally {
               executingNodesRef.current.delete(nodeId); // 解锁
           }
+          return;
+      }
+
+      // RunningHub节点由组件内部处理执行逻辑
+      if (node.type === 'runninghub') {
+          console.log(`[RunningHub] 节点 ${nodeId.slice(0,8)} 由组件内部处理执行`);
+          executingNodesRef.current.delete(nodeId); // 解锁
           return;
       }
 
@@ -4110,8 +4287,8 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
               setNodes(prev => [...prev, ideaNode]);
               // 不创建Image节点，不创建连接
             }
-          }}
-      />
+           }}
+       />
       
       {/* 画布名称标识 - 独立模块 */}
       <CanvasNameBadge 
@@ -4371,15 +4548,14 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
                             console.warn('[Download] 节点无内容:', id);
                             return;
                         }
-                        
-                        // 根据内容类型判断文件扩展名
-                        const isVideo = n.content.startsWith('data:video') || n.content.includes('.mp4') || n.type === 'video';
-                        const ext = isVideo ? 'mp4' : 'png';
-                        const filename = `pebbling-${n.id}.${ext}`;
+
                         const content = n.content;
-                        
+
                         // 如果是 base64 数据，直接下载
                         if (content.startsWith('data:')) {
+                            const isVideo = content.startsWith('data:video');
+                            const ext = isVideo ? 'mp4' : 'png';
+                            const filename = `pebbling-${n.id}.${ext}`;
                             const link = document.createElement('a');
                             link.href = content;
                             link.download = filename;
@@ -4389,37 +4565,92 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
                             console.log('[Download] Base64 下载成功:', filename);
                             return;
                         }
-                        
-                        // 处理 URL 路径（/files/、/api/、http://、https://）
+
+                        // 解析 JSON 格式的 content
+                        const handleDownloadFromUrl = async (url: string, fileName: string) => {
+                            try {
+                                // 相对路径转绝对路径
+                                let urlToFetch = url;
+                                if (url.startsWith('/files/') || url.startsWith('/api/')) {
+                                    urlToFetch = `http://localhost:8766${url}`;
+                                }
+                                console.log('[Download] 正在下载:', urlToFetch);
+                                const response = await fetch(urlToFetch);
+                                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                                const blob = await response.blob();
+                                const blobUrl = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = blobUrl;
+                                link.download = fileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                URL.revokeObjectURL(blobUrl);
+                                console.log('[Download] 下载成功:', fileName);
+                            } catch (error) {
+                                console.error('[Download] 下载失败:', url, error);
+                                // 降级：在新窗口打开
+                                window.open(url, '_blank');
+                            }
+                        };
+
                         try {
-                            let urlToFetch = content;
-                            
-                            // 相对路径转绝对路径
-                            if (content.startsWith('/files/') || content.startsWith('/api/')) {
-                                urlToFetch = `http://localhost:8765${content}`;
+                            // 尝试解析 JSON
+                            const parsed = JSON.parse(content);
+                            console.log('[Download] 解析到 JSON:', typeof parsed);
+
+                            if (Array.isArray(parsed)) {
+                                // 数组格式：遍历下载
+                                for (let i = 0; i < parsed.length; i++) {
+                                    const item = parsed[i];
+                                    if (item.fileUrl) {
+                                        const ext = item.fileType?.toLowerCase() || 'png';
+                                        const fileName = item.fileName || `output_${i + 1}.${ext}`;
+                                        await handleDownloadFromUrl(item.fileUrl, fileName);
+                                        await new Promise(r => setTimeout(r, 300));
+                                    }
+                                }
+                            } else if (typeof parsed === 'object' && parsed !== null) {
+                                // 对象格式：检查是否有 results 或数字索引
+                                let files: any[] = [];
+
+                                if (parsed.results && Array.isArray(parsed.results)) {
+                                    // 有 results 字段
+                                    files = parsed.results;
+                                } else {
+                                    // 提取数字索引的对象值
+                                    files = Object.values(parsed).filter(
+                                        item => typeof item === 'object' && item !== null && item.fileUrl
+                                    );
+                                }
+
+                                if (files.length > 0) {
+                                    // 遍历下载
+                                    for (let i = 0; i < files.length; i++) {
+                                        const item = files[i];
+                                        if (item.fileUrl) {
+                                            const ext = item.fileType?.toLowerCase() || item.url?.split('/').pop()?.split('.').pop() || 'png';
+                                            const remoteUrl = item.url || item.fileUrl;
+                                            const fileName = remoteUrl.split('/').pop() || `output_${i + 1}.${ext}`;
+                                            await handleDownloadFromUrl(remoteUrl, fileName);
+                                            await new Promise(r => setTimeout(r, 300));
+                                        }
+                                    }
+                                } else {
+                                    // 没有可下载的文件，降级处理
+                                    console.warn('[Download] JSON 中没有可下载的文件');
+                                    window.open(content, '_blank');
+                                }
+                            } else {
+                                // 其他格式，作为 URL 处理
+                                throw new Error('非对象格式');
                             }
-                            
-                            console.log('[Download] 正在下载:', urlToFetch);
-                            const response = await fetch(urlToFetch);
-                            
-                            if (!response.ok) {
-                                throw new Error(`HTTP ${response.status}`);
-                            }
-                            
-                            const blob = await response.blob();
-                            const blobUrl = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = blobUrl;
-                            link.download = filename;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            URL.revokeObjectURL(blobUrl);
-                            console.log('[Download] URL 下载成功:', filename);
-                        } catch (error: any) {
-                            console.error('[Download] 下载失败:', error);
-                            // 降级：在新窗口打开
-                            window.open(content, '_blank');
+                        } catch (e) {
+                            // 不是有效 JSON，作为 URL 直接下载
+                            const isVideo = content.includes('.mp4');
+                            const ext = isVideo ? 'mp4' : 'png';
+                            const filename = `pebbling-${n.id}.${ext}`;
+                            await handleDownloadFromUrl(content, filename);
                         }
                     }}
                     onStartConnection={(id, type, pos) => {
@@ -4540,8 +4771,8 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
                  setConnections(prev => [...prev, ...newConns]);
                  setInstantiatingPreset(null);
              }}
-          />
-      )}
+           />
+       )}
 
     </div>
   );

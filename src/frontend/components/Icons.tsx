@@ -29,7 +29,8 @@ import {
   Copy,
   Info,
   Wrench,
-  Expand
+  Expand,
+  Zap
 } from 'lucide-react';
 
 export const Icons = {
@@ -61,5 +62,6 @@ export const Icons = {
   Copy,
   Info,
   Wrench,
-  Expand
+  Expand,
+  Zap
 };

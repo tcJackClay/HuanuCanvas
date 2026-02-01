@@ -4,6 +4,7 @@ export interface RunningHubFunction {
   id: string;
   name: string;
   icon: string;
+  iconType?: string;
   color: string;
   webappId: string;
   category: string;

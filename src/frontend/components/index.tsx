@@ -2336,7 +2336,7 @@ const PebblingCanvas: React.FC<PebblingCanvasProps> = ({
           height: 100,
           type: 'runninghub-output',
           content: nodeContent,
-          title: 'RunningHub结果',
+          title: '',
           status: 'completed',
           data: {
               runninghubOutput: unifiedOutput,

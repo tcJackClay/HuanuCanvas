@@ -36,6 +36,30 @@ export interface ThemeColors {
   // 特殊效果
   glow: string;
   shadow: string;
+  
+  // 状态颜色
+  success: string;
+  successLight: string;
+  warning: string;
+  warningLight: string;
+  error: string;
+  errorLight: string;
+  info: string;
+  infoLight: string;
+  
+  // 节点类型颜色
+  nodeImage: string;
+  nodeImageLight: string;
+  nodeText: string;
+  nodeTextLight: string;
+  nodeLLM: string;
+  nodeLLMLight: string;
+  nodeVideo: string;
+  nodeVideoLight: string;
+  nodeBP: string;
+  nodeBPLight: string;
+  nodeRunningHub: string;
+  nodeRunningHubLight: string;
 }
 
 export interface ThemeDecorations {
@@ -70,7 +94,7 @@ const darkTheme: Theme = {
     primaryLight: '#a5b4fc',
     primaryDark: '#2563eb',
     accent: '#3b82f6',
-    accentLight: '#3b82f6',
+    accentLight: '#60a5fa',
     bgPrimary: '#0a0a0f',
     bgSecondary: '#12121a',
     bgTertiary: '#1a1a24',
@@ -85,6 +109,28 @@ const darkTheme: Theme = {
     gradientEnd: '#ffffff',
     glow: 'rgba(59, 130, 246, 0.4)',
     shadow: 'rgba(0, 0, 0, 0.4)',
+    // 状态颜色
+    success: '#22c55e',
+    successLight: '#86efac',
+    warning: '#f59e0b',
+    warningLight: '#fcd34d',
+    error: '#ef4444',
+    errorLight: '#fca5a5',
+    info: '#3b82f6',
+    infoLight: '#93c5fd',
+    // 节点类型颜色
+    nodeImage: 'rgb(125, 163, 184)',
+    nodeImageLight: 'rgb(168, 197, 214)',
+    nodeText: 'rgb(158, 179, 168)',
+    nodeTextLight: 'rgb(184, 207, 194)',
+    nodeLLM: 'rgb(168, 155, 184)',
+    nodeLLMLight: 'rgb(194, 184, 207)',
+    nodeVideo: 'rgb(184, 197, 207)',
+    nodeVideoLight: 'rgb(209, 220, 229)',
+    nodeBP: 'rgb(96, 165, 250)',
+    nodeBPLight: 'rgb(147, 197, 253)',
+    nodeRunningHub: 'rgb(34, 197, 94)',
+    nodeRunningHubLight: 'rgb(134, 239, 172)',
   },
   decorations: {
     snowflakes: false,
@@ -129,6 +175,30 @@ const lightTheme: Theme = {
     // 特殊效果 - 浅色模式用更重的阴影营造层次
     glow: 'rgba(37, 99, 235, 0.15)',
     shadow: 'rgba(15, 23, 42, 0.08)',  // 柔和的阴影
+    
+    // 状态颜色
+    success: '#16a34a',
+    successLight: '#86efac',
+    warning: '#d97706',
+    warningLight: '#fcd34d',
+    error: '#dc2626',
+    errorLight: '#fca5a5',
+    info: '#2563eb',
+    infoLight: '#93c5fd',
+    
+    // 节点类型颜色
+    nodeImage: 'rgb(59, 130, 246)',
+    nodeImageLight: 'rgb(147, 197, 253)',
+    nodeText: 'rgb(34, 197, 94)',
+    nodeTextLight: 'rgb(134, 239, 172)',
+    nodeLLM: 'rgb(139, 92, 246)',
+    nodeLLMLight: 'rgb(196, 181, 253)',
+    nodeVideo: 'rgb(59, 130, 246)',
+    nodeVideoLight: 'rgb(147, 197, 253)',
+    nodeBP: 'rgb(37, 99, 235)',
+    nodeBPLight: 'rgb(147, 197, 253)',
+    nodeRunningHub: 'rgb(34, 197, 94)',
+    nodeRunningHubLight: 'rgb(134, 239, 172)',
   },
   decorations: {
     snowflakes: false,
@@ -201,6 +271,30 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     root.style.setProperty('--color-gradient-end', colors.gradientEnd);
     root.style.setProperty('--color-glow', colors.glow);
     root.style.setProperty('--color-shadow', colors.shadow);
+    
+    // 状态颜色
+    root.style.setProperty('--color-success', colors.success);
+    root.style.setProperty('--color-success-light', colors.successLight);
+    root.style.setProperty('--color-warning', colors.warning);
+    root.style.setProperty('--color-warning-light', colors.warningLight);
+    root.style.setProperty('--color-error', colors.error);
+    root.style.setProperty('--color-error-light', colors.errorLight);
+    root.style.setProperty('--color-info', colors.info);
+    root.style.setProperty('--color-info-light', colors.infoLight);
+    
+    // 节点类型颜色
+    root.style.setProperty('--color-node-image', colors.nodeImage);
+    root.style.setProperty('--color-node-image-light', colors.nodeImageLight);
+    root.style.setProperty('--color-node-text', colors.nodeText);
+    root.style.setProperty('--color-node-text-light', colors.nodeTextLight);
+    root.style.setProperty('--color-node-llm', colors.nodeLLM);
+    root.style.setProperty('--color-node-llm-light', colors.nodeLLMLight);
+    root.style.setProperty('--color-node-video', colors.nodeVideo);
+    root.style.setProperty('--color-node-video-light', colors.nodeVideoLight);
+    root.style.setProperty('--color-node-bp', colors.nodeBP);
+    root.style.setProperty('--color-node-bp-light', colors.nodeBPLight);
+    root.style.setProperty('--color-node-runninghub', colors.nodeRunningHub);
+    root.style.setProperty('--color-node-runninghub-light', colors.nodeRunningHubLight);
     
     // 设置主题类名
     root.className = `theme-${themeName}`;

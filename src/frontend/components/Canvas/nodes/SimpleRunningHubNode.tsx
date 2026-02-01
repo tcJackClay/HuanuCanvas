@@ -207,7 +207,8 @@ const SimpleRunningHubNode: React.FC<NodeProps<RunningHubNodeData>> = ({
     backgroundColor: '#ffffff',
     boxShadow: selected ? '0 0 0 1px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)',
     minWidth: '200px',
-    maxWidth: '300px'
+    maxWidth: '300px',
+    minHeight: '400px'
   }), [selected]);
 
   const IconComponent = getNodeIcon(data.config?.nodeType || 'default');

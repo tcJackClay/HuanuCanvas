@@ -307,14 +307,15 @@ export type DesktopItem = DesktopImageItem | DesktopFolderItem | DesktopStackIte
 
 // RUNNINGHUB功能项
 export interface RunningHubFunction {
-  id: string;                    // 唯一标识符
-  name: string;                  // 显示名称
-  icon: string;                  // Emoji图标
-  color: string;                 // 主题色彩（HEX格式）
-  webappId: string;             // RUNNINGHUB应用ID
-  category: string;              // 功能分类
-  description: string;            // 详细描述
-  defaultInputs?: Record<string, string>; // 默认输入参数
+  id: string;
+  name: string;
+  icon: string;
+  iconType?: string;
+  color: string;
+  webappId: string;
+  category: string;
+  description: string;
+  defaultInputs?: Record<string, string>;
 }
 
 // 功能分类统计

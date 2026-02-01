@@ -35,6 +35,13 @@
       "enabled": false,
       "apiKey": "",
       "baseUrl": "https://generativelanguage.googleapis.com"
+    },
+    "jimeng": {
+      "enabled": true,
+      "sessionId": "e6fc20162479a6621809aac8823f822c",
+      "baseUrl": "http://127.0.0.1:8766",
+      "region": "cn",
+      "model": "jimeng-4.5"
     }
   },
   "features": {
@@ -43,7 +50,8 @@
       {
         "id": "ai_image_upscale",
         "name": "图片放大",
-        "icon": "H",
+        "icon": "⬆️",
+        "iconType": "Maximize",
         "color": "#3B82F6",
         "webappId": "2007596875607707650",
         "category": "图片处理",
@@ -54,6 +62,7 @@
         "id": "image_enhance", 
         "name": "人物多角度",
         "icon": "🖼️",
+        "iconType": "Image",
         "color": "#10B981",
         "webappId": "1997953926043459586",
         "category": "图片处理", 
@@ -64,6 +73,7 @@
         "id": "style_transfer",
         "name": "图片融合", 
         "icon": "🎭",
+        "iconType": "Palette",
         "color": "#8B5CF6",
         "webappId": "1954402676572340225",
         "category": "图片处理",
@@ -74,6 +84,7 @@
         "id": "video_editing",
         "name": "镜头分镜",
         "icon": "🎬",
+        "iconType": "Film",
         "color": "#EC4899",
         "webappId": "2004018172321800193", 
         "category": "图片处理",
@@ -83,7 +94,8 @@
       {
         "id": "text_analysis",
         "name": "道具迁移",
-        "icon": "📝",
+        "icon": "📦",
+        "iconType": "Package",
         "color": "#6B7280",
         "webappId": "1973744628144975874",
         "category": "图片处理", 
@@ -93,7 +105,8 @@
       {
         "id": "data_visualization",
         "name": "动作迁移",
-        "icon": "📊",
+        "icon": "💃",
+        "iconType": "Activity",
         "color": "#059669",
         "webappId": "1996522834732130305",
         "category": "视频处理",
@@ -103,7 +116,8 @@
       {
         "id": "video_upscale",
         "name": "视频高清",
-        "icon": "📊",
+        "icon": "🎞️",
+        "iconType": "Video",
         "color": "#059669",
         "webappId": "1933689617772404738",
         "category": "视频处理",

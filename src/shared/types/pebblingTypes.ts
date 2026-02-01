@@ -218,7 +218,7 @@ export const ARCTIC_COLORS = {
   bpBlueLight: 'rgb(147, 197, 253)',
 } as const;
 
-// 节点类型颜色映射
+// 节点类型颜色映射 - 使用 CSS 变量实现主题适配
 export const getNodeTypeColor = (type: NodeType): { primary: string; light: string } => {
   switch (type) {
     case 'image':
@@ -226,27 +226,27 @@ export const getNodeTypeColor = (type: NodeType): { primary: string; light: stri
     case 'remove-bg':
     case 'upscale':
     case 'resize':
-      return { primary: ARCTIC_COLORS.glacierBlue, light: ARCTIC_COLORS.glacierBlueLight };
+      return { primary: 'var(--color-node-image)', light: 'var(--color-node-image-light)' };
     
     case 'text':
     case 'idea':
-      return { primary: ARCTIC_COLORS.tundraGreen, light: ARCTIC_COLORS.tundraGreenLight };
+      return { primary: 'var(--color-node-text)', light: 'var(--color-node-text-light)' };
     
     case 'llm':
-      return { primary: ARCTIC_COLORS.auroraViolet, light: ARCTIC_COLORS.auroraVioletLight };
+      return { primary: 'var(--color-node-llm)', light: 'var(--color-node-llm-light)' };
     
     case 'video':
     case 'video-output':
-      return { primary: ARCTIC_COLORS.snowBlue, light: ARCTIC_COLORS.snowBlueLight };
+      return { primary: 'var(--color-node-video)', light: 'var(--color-node-video-light)' };
     
     case 'bp':
-      return { primary: ARCTIC_COLORS.bpBlue, light: ARCTIC_COLORS.bpBlueLight };
+      return { primary: 'var(--color-node-bp)', light: 'var(--color-node-bp-light)' };
     
     case 'runninghub':
     case 'runninghub-output':
-      return { primary: ARCTIC_COLORS.tundraGreen, light: ARCTIC_COLORS.tundraGreenLight };
+      return { primary: 'var(--color-node-runninghub)', light: 'var(--color-node-runninghub-light)' };
     
     default:
-      return { primary: ARCTIC_COLORS.arcticGray, light: ARCTIC_COLORS.arcticGrayLight };
-  };
+      return { primary: 'var(--color-border)', light: 'var(--color-border-light)' };
+  }
 };

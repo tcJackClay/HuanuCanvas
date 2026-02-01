@@ -2,10 +2,203 @@
   {
     "id": "canvas-1769713886975-2bmcuh",
     "name": "画布 1",
-    "nodes": [],
+    "nodes": [
+      {
+        "id": "l5yslo0wk",
+        "type": "runninghub",
+        "content": "人物多角度",
+        "x": 226.47240974965518,
+        "y": 193.69597726994428,
+        "width": 300,
+        "height": 200,
+        "title": "人物多角度",
+        "data": {
+          "type": "runninghub",
+          "content": "人物多角度",
+          "position": {
+            "x": 479.4578060262764,
+            "y": 207.42383162457173
+          },
+          "title": "人物多角度",
+          "id": "image_enhance",
+          "inputFields": []
+        },
+        "status": "idle"
+      }
+    ],
     "connections": [],
     "createdAt": 1769713886975,
-    "updatedAt": 1769761060601,
+    "updatedAt": 1769917389275,
+    "thumbnail": null
+  },
+  {
+    "id": "canvas-1769917384937-be7t4c",
+    "name": "画布 2",
+    "nodes": [
+      {
+        "id": "68zgzttge",
+        "type": "runninghub",
+        "content": "图片融合",
+        "x": 922.2450987192772,
+        "y": 478.4486888137715,
+        "width": 320,
+        "height": 560,
+        "title": "图片融合",
+        "data": {
+          "type": "runninghub",
+          "content": "图片融合",
+          "position": {
+            "x": 465.77093521625426,
+            "y": 245.05979602840807
+          },
+          "title": "图片融合",
+          "id": "style_transfer",
+          "inputFields": []
+        },
+        "status": "idle"
+      },
+      {
+        "id": "acm6obzex",
+        "type": "image",
+        "content": "",
+        "x": 1516,
+        "y": 170.5,
+        "width": 300,
+        "height": 300,
+        "status": "error",
+        "data": {}
+      },
+      {
+        "id": "zzwnemy29",
+        "type": "runninghub",
+        "content": "人物多角度",
+        "x": -255.79146364970296,
+        "y": 126.90522549943479,
+        "width": 492.1483389236463,
+        "height": 637.7058474308126,
+        "title": "人物多角度",
+        "data": {
+          "type": "runninghub",
+          "content": "人物多角度",
+          "position": {
+            "x": 293.6071534913117,
+            "y": 206.48869093587373
+          },
+          "title": "人物多角度",
+          "id": "image_enhance",
+          "inputFields": []
+        },
+        "status": "idle"
+      },
+      {
+        "id": "output-zzwnemy29-1769927029018",
+        "x": 263.43292614656536,
+        "y": 129.2961746511521,
+        "width": 312.37461013071356,
+        "height": 510.04777951951854,
+        "type": "runninghub-output",
+        "content": "{\"0\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00001_tezeu_1769927015.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"1\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00002_pnpyp_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"2\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00003_tflro_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"3\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00004_tpqfn_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"4\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00005_dczmk_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"5\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00006_plbpv_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"6\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00007_upnrp_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"7\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00008_dojlv_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"8\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00009_qjscz_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"9\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00010_aftxk_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"10\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00011_pubjf_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"11\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00012_bujon_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"12\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00013_vudpa_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"13\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00014_xbtzm_1769927017.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"14\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00015_kuzmx_1769927017.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"15\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00016_gqmpn_1769927017.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"localImages\":[],\"localVideos\":[],\"localFiles\":[]}",
+        "title": "RunningHub结果",
+        "status": "completed",
+        "data": {
+          "runninghubOutput": "{\"0\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00001_tezeu_1769927015.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"1\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00002_pnpyp_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"2\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00003_tflro_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"3\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00004_tpqfn_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"4\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00005_dczmk_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"5\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00006_plbpv_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"6\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00007_upnrp_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"7\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00008_dojlv_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"8\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00009_qjscz_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"9\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00010_aftxk_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"10\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00011_pubjf_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"11\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00012_bujon_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"12\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00013_vudpa_1769927016.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"13\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00014_xbtzm_1769927017.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"14\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00015_kuzmx_1769927017.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"15\":{\"fileUrl\":\"https://rh-images.xiaoyaoyou.com/c12f19511a2bdb0dec33b2ed86081625/output/ComfyUI_00016_gqmpn_1769927017.png\",\"fileType\":\"png\",\"taskCostTime\":\"354\",\"nodeId\":\"96\",\"thirdPartyConsumeMoney\":null,\"consumeMoney\":null,\"consumeCoins\":\"71\"},\"localImages\":[],\"localVideos\":[],\"localFiles\":[]}",
+          "downloadFiles": [],
+          "allImages": [],
+          "isMultiImage": false
+        }
+      }
+    ],
+    "connections": [
+      {
+        "id": "u2a5pf9p6",
+        "fromNode": "8hr3b5czs",
+        "toNode": "4gsp638eh"
+      },
+      {
+        "id": "ieai6k95h",
+        "fromNode": "8hr3b5czs",
+        "toNode": "8az2dzpn9"
+      },
+      {
+        "id": "7l1j02yvr",
+        "fromNode": "8az2dzpn9",
+        "toNode": "acm6obzex"
+      },
+      {
+        "id": "k0w8bvcqr",
+        "fromNode": "i88nez10f",
+        "toNode": "output-i88nez10f-1769925569337"
+      },
+      {
+        "id": "3g991wwhw",
+        "fromNode": "zzwnemy29",
+        "toNode": "output-zzwnemy29-1769927029018"
+      }
+    ],
+    "createdAt": 1769917384937,
+    "updatedAt": 1769927174172,
+    "thumbnail": null
+  },
+  {
+    "id": "canvas-1769927668351-1ok0o5",
+    "name": "画布 1",
+    "nodes": [],
+    "connections": [],
+    "createdAt": 1769927668351,
+    "updatedAt": 1769927668351,
+    "thumbnail": null
+  },
+  {
+    "id": "canvas-1769927668354-9q1p8n",
+    "name": "画布 1",
+    "nodes": [
+      {
+        "id": "u9kidiq3p",
+        "type": "runninghub",
+        "content": "图片融合",
+        "x": 435.19881481352354,
+        "y": 98.11124580978776,
+        "width": 320,
+        "height": 560,
+        "title": "图片融合",
+        "data": {
+          "type": "runninghub",
+          "content": "图片融合",
+          "position": {
+            "x": 213.70046496318946,
+            "y": 243.80812419043343
+          },
+          "title": "图片融合",
+          "id": "style_transfer",
+          "inputFields": []
+        },
+        "status": "idle"
+      }
+    ],
+    "connections": [
+      {
+        "id": "ucx7fu4sd",
+        "fromNode": "eh17yzhw4",
+        "toNode": "output-eh17yzhw4-1769928074789"
+      },
+      {
+        "id": "648pdgp9y",
+        "fromNode": "il0gw400u",
+        "toNode": "output-il0gw400u-1769928873449"
+      },
+      {
+        "id": "60eeyy8th",
+        "fromNode": "u9kidiq3p",
+        "toNode": "output-u9kidiq3p-1769939639009"
+      },
+      {
+        "id": "3sn1g7i5a",
+        "fromNode": "u9kidiq3p",
+        "toNode": "output-u9kidiq3p-1769944345650"
+      }
+    ],
+    "createdAt": 1769927668354,
+    "updatedAt": 1769951554801,
     "thumbnail": null
   }
 ]

@@ -289,7 +289,7 @@ export function useTaskSubmit(options: UseTaskSubmitOptions) {
         errorMessage = err.message;
 
         if (err.message.includes('API Key')) {
-          errorMessage += '\n\n请检查:\n1. RUNNINGHUB_API_KEY 是否正确配置\n2. API Key 是否有访问权限';
+          errorMessage += '\n\n请检查后端 API 配置是否正确';
         } else if (err.message.includes('NOT_FOUND')) {
           errorMessage += '\n\n请检查:\n1. RUNNINGHUB_WEBAPP_ID 是否正确\n2. 应用是否存在且可访问';
         } else if (err.message.includes('fetch')) {

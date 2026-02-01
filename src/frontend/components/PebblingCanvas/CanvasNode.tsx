@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { CanvasNode, NodeType, getNodeTypeColor } from '../../../shared/types/pebblingTypes';
 import { Icons } from '../Icons';
-import { ChevronDown, Check, X, Loader2, File } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Check, X, Loader2, File } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import RunningHubNodeContent from '../RunningHubNodeContent';
 
@@ -1702,8 +1702,9 @@ if (node.type === 'resize') return renderMultiAngleNode();
         }
 
         const runninghubOutput = node.data?.runninghubOutput || {};
-        const allImages = node.data?.allImages || [];
-        const isMultiImage = node.data?.isMultiImage || allImages.length > 1;
+        const allImages = Array.isArray(node.data?.allImages) ? node.data?.allImages : [];
+        const [currentIndex, setCurrentIndex] = useState(0);
+        const isMultiImage = allImages.length > 1;
         const hasContent = node.content || downloadFiles.length > 0;
         
         const nodeColors = getNodeTypeColor(node.type);
@@ -1757,17 +1758,36 @@ if (node.type === 'resize') return renderMultiAngleNode();
                 <div className="flex-1 relative overflow-hidden">
                     {hasContent ? (
                         <>
-                            {/* 多图片画廊 */}
+                            {/* 多图片画廊 - 翻页模式 */}
                             {isMultiImage ? (
-                                <div className="w-full h-full overflow-auto">
-                                    <div className="grid grid-cols-2 gap-1 p-1">
-                                        {allImages.map((imgUrl: string, index: number) => (
-                                            <img
-                                                key={index}
-                                                src={imgUrl}
-                                                alt={`结果 ${index + 1}`}
-                                                className="w-full h-24 object-contain bg-black/20 rounded"
-                                                onError={(e) => console.error(`[CanvasNode] 图片${index}加载失败:`, imgUrl)}
+                                <div className="w-full h-full relative">
+                                    <img
+                                        src={allImages[currentIndex]}
+                                        alt={`结果 ${currentIndex + 1}/${allImages.length}`}
+                                        className="w-full h-full object-contain"
+                                        onError={(e) => console.error(`[CanvasNode] 图片${currentIndex}加载失败`)}
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-between p-2 pointer-events-none">
+                                        <button
+                                            onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+                                            disabled={currentIndex === 0}
+                                            className="pointer-events-auto w-8 h-8 rounded-full bg-black/50 flex items-center justify-center disabled:opacity-30 hover:bg-black/70 transition-colors"
+                                        >
+                                            <ChevronLeft size={16} className="text-white" />
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentIndex(Math.min(allImages.length - 1, currentIndex + 1))}
+                                            disabled={currentIndex === allImages.length - 1}
+                                            className="pointer-events-auto w-8 h-8 rounded-full bg-black/50 flex items-center justify-center disabled:opacity-30 hover:bg-black/70 transition-colors"
+                                        >
+                                            <ChevronRight size={16} className="text-white" />
+                                        </button>
+                                    </div>
+                                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                                        {allImages.map((_, idx) => (
+                                            <div
+                                                key={idx}
+                                                className={`w-1.5 h-1.5 rounded-full ${idx === currentIndex ? 'bg-white' : 'bg-white/30'}`}
                                             />
                                         ))}
                                     </div>
@@ -1820,47 +1840,6 @@ if (node.type === 'resize') return renderMultiAngleNode();
                                         />
                                     );
                                 })()
-                            )}
-                            
-                            {/* 下载按钮 */}
-                            {downloadFiles.length > 0 && (
-                                <div className="absolute bottom-2 left-2 right-2 z-10">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            let files = downloadFiles;
-                                            if (typeof downloadFiles === 'string') {
-                                                try {
-                                                    files = JSON.parse(downloadFiles);
-                                                } catch (err) {
-                                                    console.error('[CanvasNode] 解析 downloadFiles 失败:', err);
-                                                    files = [];
-                                                }
-                                            }
-                                            if (Array.isArray(files)) {
-                                                files.forEach((file: any) => {
-                                                    if (file.fileUrl) {
-                                                        window.open(file.fileUrl, '_blank');
-                                                    }
-                                                });
-                                            }
-                                        }}
-                                        className="w-full py-2 rounded-lg text-xs font-medium transition-colors backdrop-blur-md"
-                                        style={{ 
-                                            background: 'rgba(34, 197, 94, 0.2)',
-                                            border: '1px solid rgba(34, 197, 94, 0.3)',
-                                            color: '#4ade80'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = 'rgba(34, 197, 94, 0.3)';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = 'rgba(34, 197, 94, 0.2)';
-                                        }}
-                                    >
-                                        下载 ({downloadFiles.length} 个文件)
-                                    </button>
-                                </div>
                             )}
                         </>
                     ) : (
@@ -2345,12 +2324,88 @@ if (node.type === 'resize') return renderMultiAngleNode();
                  </div>
              )}
 
-            {/* Download Button */}
-            {(node.content) && (
-                 <button 
-                    onClick={(e) => { e.stopPropagation(); onDownload(node.id); }}
-                    style={{ 
-                      backgroundColor: theme.colors.bgPanel, 
+            {/* Download Button - runninghub类型不显示，runninghub-output特殊处理 */}
+            {((node.content || node.data?.allImages?.length > 0) && node.type !== 'runninghub') && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('[下载] 点击下载按钮, node.type:', node.type);
+
+                        const handleDownloadFile = async (url: string, fileName: string) => {
+                            try {
+                                // 相对路径转绝对路径
+                                let urlToFetch = url;
+                                if (url.startsWith('/files/') || url.startsWith('/api/')) {
+                                    urlToFetch = `http://localhost:8766${url}`;
+                                }
+                                const response = await fetch(urlToFetch);
+                                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                                const blob = await response.blob();
+                                const blobUrl = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = blobUrl;
+                                link.download = fileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                URL.revokeObjectURL(blobUrl);
+                                console.log('[下载] 成功:', fileName);
+                            } catch (error) {
+                                console.error('[下载] 失败:', fileName, error);
+                                window.open(url, '_blank');
+                            }
+                        };
+
+                        if (node.type === 'runninghub-output') {
+                            const localImages = Array.isArray(node.data?.localImages) ? node.data?.localImages : [];
+
+                            // 尝试从 content 解析 JSON
+                            try {
+                                const parsed = JSON.parse(node.content);
+                                let files: any[] = [];
+
+                                if (Array.isArray(parsed)) {
+                                    files = parsed;
+                                } else if (typeof parsed === 'object' && parsed !== null) {
+                                    if (parsed.results && Array.isArray(parsed.results)) {
+                                        files = parsed.results;
+                                    } else {
+                                        files = Object.values(parsed).filter(
+                                            item => typeof item === 'object' && item !== null && item.fileUrl
+                                        );
+                                    }
+                                }
+
+                                console.log('[下载] 解析到', files.length, '个文件');
+
+                                if (files.length > 0) {
+                                    files.forEach((item: any, index: number) => {
+                                        const remoteUrl = item.url || item.fileUrl;
+                                        const ext = item.fileType?.toLowerCase() || item.url?.split('/').pop()?.split('.').pop() || 'png';
+                                        const fileName = remoteUrl?.split('/').pop() || `output_${index + 1}.${ext}`;
+
+                                        setTimeout(async () => {
+                                            if (localImages[index]) {
+                                                const localFileName = localImages[index].split('/').pop();
+                                                const downloadUrl = `http://localhost:8766/api/files/download/output/${localFileName}`;
+                                                await handleDownloadFile(downloadUrl, fileName);
+                                            } else if (remoteUrl) {
+                                                await handleDownloadFile(remoteUrl, fileName);
+                                            }
+                                        }, index * 300);
+                                    });
+                                    return;
+                                }
+                            } catch (e) {
+                                console.log('[下载] content 不是 JSON 格式');
+                            }
+                        }
+
+                        // 使用原有 onDownload 逻辑
+                        onDownload(node.id);
+                    }}
+                    style={{
+                      backgroundColor: theme.colors.bgPanel,
                       borderColor: theme.colors.border,
                       color: theme.colors.textSecondary
                     }}

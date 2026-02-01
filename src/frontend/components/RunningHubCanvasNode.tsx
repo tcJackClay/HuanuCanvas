@@ -45,7 +45,10 @@ const RunningHubCanvasNode: React.FC<RunningHubCanvasNodeProps> = ({
   const hasConfig = nodeData.webappId && nodeData.apiKey;
 
   // 动态节点高度计算
-  const nodeHeight = 120 + (isExpanded ? Math.min(nodeInfoList.length, 5) * 60 : 0) + 60;
+  const baseHeight = 480; // 基础高度增加到3倍
+  const contentHeight = isExpanded ? Math.min(nodeInfoList.length, 5) * 60 : 0;
+  const bottomHeight = 60;
+  const nodeHeight = baseHeight + contentHeight + bottomHeight;
   const nodeWidth = 320;
 
   // 获取预览图片
@@ -408,7 +411,7 @@ const RunningHubCanvasNode: React.FC<RunningHubCanvasNodeProps> = ({
         </div>
 
         {/* 预览图区域 */}
-        <div className="h-[120px] relative overflow-hidden" style={{ backgroundColor: theme.colors.bgSecondary }}>
+        <div className="h-[240px] relative overflow-hidden" style={{ backgroundColor: theme.colors.bgSecondary }}>
           {previewImage ? (
             <img 
               src={previewImage} 

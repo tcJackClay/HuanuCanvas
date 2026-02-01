@@ -3,7 +3,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { ImageUploader } from './components/ImageUploader';
 import { normalizeImageUrl } from './utils/image';
 import { GeneratedImageDisplay } from './components/GeneratedImageDisplay';
-import { editImageWithGemini, generateCreativePromptFromImage, initializeAiClient, processBPTemplate, setThirdPartyConfig, optimizePrompt } from './services/ai/geminiService';
+import { editImageWithGemini, generateCreativePromptFromImage, processBPTemplate, setThirdPartyConfig, optimizePrompt } from './services/ai/geminiService';
 import CreativeExtractor, { extractCreatives } from './services/ai/creativeExtractor';
 import { ApiStatus, GeneratedContent, CreativeIdea, SmartPlusConfig, ThirdPartyApiConfig, GenerationHistory, DesktopItem, DesktopImageItem, DesktopFolderItem, CreativeCategoryType } from '../shared/types';
 import { ImagePreviewModal } from './components/Modals/ImagePreviewModal';
@@ -327,7 +327,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
 
   return (
     <div 
-      className="w-[320px] flex-shrink-0 flex flex-col h-full liquid-panel border-r z-20"
+      className="w-[240px] flex-shrink-0 flex flex-col h-full liquid-panel border-r z-20"
       style={{ borderColor: theme.colors.border, backgroundColor: theme.colors.bgPrimary }}
     >
       {/* 顶部工具栏 */}
@@ -664,20 +664,6 @@ const Canvas: React.FC<CanvasProps> = ({
           桌面
         </button>
         <button
-          onClick={() => setView('local-library')}
-          className={`liquid-tab flex items-center gap-1 ${
-            view === 'local-library' ? 'active' : ''
-          }`}
-        >
-          <Folder className="w-3 h-3" />
-          本地创意
-          {localCreativeIdeas.length > 0 && (
-            <span className="px-1 py-0.5 text-[8px] rounded bg-white/20 font-medium">
-              {localCreativeIdeas.length}
-            </span>
-          )}
-        </button>
-        <button
           onClick={() => setView('canvas')}
           className={`liquid-tab flex items-center gap-1 ${
             view === 'canvas' ? 'active' : ''
@@ -687,28 +673,7 @@ const Canvas: React.FC<CanvasProps> = ({
           画布
         </button>
       </div>
-      {view === 'local-library' ? (
-        /* 创意库全屏显示 - 支持卡片拖拽排序 */
-        <div className="absolute inset-0 z-50 pt-12">
-          <CreativeLibrary
-            ideas={localCreativeIdeas}
-            onBack={onBack}
-            onAdd={onAdd}
-            onDelete={onDelete}
-            onDeleteMultiple={onDeleteMultiple}
-            onEdit={onEdit}
-            onUse={onUse}
-            onExport={onExportIdeas}
-            onImport={onImportIdeas}
-            onImportById={onImportById}
-            onReorder={onReorderIdeas}
-            onToggleFavorite={onToggleFavorite}
-            onUpdateCategory={onUpdateCategory}
-            isImporting={isImporting}
-            isImportingById={isImportingById}
-          />
-        </div>
-      ) : view === 'canvas' ? (
+      {view === 'canvas' ? (
         /* 画布全屏显示 - 覆盖整个区域，标签栏浮在上方 */
         <div className="absolute inset-0 z-50 overflow-hidden">
           <PebblingCanvas 
@@ -897,7 +862,7 @@ const App: React.FC = () => {
   // 待添加到画布的图片（用于桌面->画布联动）
   const [pendingCanvasImage, setPendingCanvasImage] = useState<{ imageUrl: string; imageName?: string } | null>(null);
   // 左侧面板显示/隐藏状态
-  const [showLeftPanel, setShowLeftPanel] = useState(true);
+  const [showLeftPanel, setShowLeftPanel] = useState(false);
   // 画布ID到桌面文件夹ID的映射（用于画布-桌面联动）
   const [canvasToFolderMap, setCanvasToFolderMap] = useState<Record<string, string>>(() => {
     try {
@@ -918,7 +883,6 @@ const App: React.FC = () => {
     const savedApiKey = localStorage.getItem('gemini_api_key');
     if (savedApiKey) {
       setApiKey(savedApiKey);
-      initializeAiClient(savedApiKey);
     }
     // 加载贞贞API配置
     const savedThirdPartyConfig = localStorage.getItem('third_party_api_config');
@@ -1139,8 +1103,7 @@ const App: React.FC = () => {
   const handleApiKeySave = (key: string) => {
     setApiKey(key);
     localStorage.setItem('gemini_api_key', key);
-    initializeAiClient(key);
-    setError(null); 
+    setError(null);
   };
   // 处理添加图片到画布
   const handleAddToCanvas = useCallback((imageUrl: string, imageName?: string) => {
@@ -2490,8 +2453,8 @@ const App: React.FC = () => {
         />
         {/* 画面中央下方的新建创意按钮 */}
         <button
-          onClick={() => setAddIdeaModalOpen(true)}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-lg z-50"
+          onClick={() => setAddIdeaModalOpen(!isAddIdeaModalOpen)}
+          className="fixed bottom-6 left-6 w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-lg z-50"
           style={{
             background: isDark ? 'rgba(59, 130, 246, 0.9)' : 'rgba(59, 130, 246, 0.9)',
             color: 'white',
@@ -2500,7 +2463,7 @@ const App: React.FC = () => {
           }}
           title="新建创意"
         >
-          <PlusCircleIcon className="w-8 h-8" />
+          <PlusCircleIcon className="w-6 h-6" />
         </button>
         {/* 批量导出组件 - 仅在选择了图片时显示 */}
         {desktopSelectedIds.length > 0 && (
@@ -2648,10 +2611,6 @@ const App: React.FC = () => {
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
-        thirdPartyConfig={thirdPartyApiConfig}
-        onThirdPartyConfigChange={handleThirdPartyConfigChange}
-        geminiApiKey={apiKey}
-        onGeminiApiKeySave={handleApiKeySave}
         autoSaveEnabled={autoSave}
         onAutoSaveToggle={handleAutoSaveToggle}
       />

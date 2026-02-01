@@ -25,12 +25,17 @@ function getDistDir() {
   return path.join(PROJECT_DIR, 'dist');
 }
 
-// 读取RunningHub配置
-function getRunningHubConfig() {
+// 读取所有 API 配置
+function getAllApisConfig() {
   const appConfigPath = path.join(BASE_DIR, 'data', 'app-config.json');
-  let apiKey = '';
-  let baseUrl = '';
-  let runningHubConfig = null;
+  const defaultConfigs = {
+    gemini: { enabled: false, apiKey: '', baseUrl: 'https://generativelanguage.googleapis.com' },
+    runninghub: { enabled: true, apiKey: '', baseUrl: 'https://www.runninghub.cn' },
+    thirdParty: { enabled: false, apiKey: '', baseUrl: 'https://ai.t8star.cn' },
+    sora: { enabled: false, apiKey: '', baseUrl: 'https://api.openai.com' },
+    veo: { enabled: false, apiKey: '', baseUrl: 'https://generativelanguage.googleapis.com' },
+    jimeng: { enabled: false, sessionId: '', baseUrl: 'http://localhost:5100', region: 'cn', model: 'jimeng-4.5' },
+  };
 
   try {
     console.log('[Config] 尝试读取配置文件:', appConfigPath);
@@ -38,48 +43,64 @@ function getRunningHubConfig() {
     if (fs.existsSync(appConfigPath)) {
       const appConfigData = fs.readFileSync(appConfigPath, 'utf8');
       const appConfig = JSON.parse(appConfigData);
-
       console.log('[Config] 配置文件读取成功，开始解析配置...');
 
-      // 读取RunningHub API配置
-      runningHubConfig = appConfig.apis?.runninghub;
-      if (runningHubConfig) {
-        apiKey = runningHubConfig.apiKey || '';
-        baseUrl = runningHubConfig.baseUrl || 'https://www.runninghub.cn';
-        console.log('[Config] RunningHub API配置读取成功:', {
-          hasApiKey: !!apiKey,
-          baseUrl,
-          enabled: runningHubConfig.enabled
-        });
-      } else {
-        console.warn('[Config] 未找到RunningHub API配置，使用默认配置');
+      const apis = appConfig.apis || {};
+      const result = {};
+
+      for (const [provider, defaultConfig] of Object.entries(defaultConfigs)) {
+        const userConfig = apis[provider] || {};
+        result[provider] = {
+          ...defaultConfig,
+          ...userConfig,
+        };
+        // 特殊处理 jimeng 的 sessionId
+        if (provider === 'jimeng') {
+          result[provider].sessionId = userConfig.sessionId || defaultConfig.sessionId;
+        } else {
+          result[provider].apiKey = userConfig.apiKey || defaultConfig.apiKey;
+        }
+        result[provider].baseUrl = userConfig.baseUrl || defaultConfig.baseUrl;
+        result[provider].enabled = userConfig.enabled ?? defaultConfig.enabled;
+
+        if (provider === 'jimeng') {
+          console.log(`[Config] ${provider} API配置:`, {
+            enabled: result[provider].enabled,
+            hasSessionId: !!result[provider].sessionId,
+            baseUrl: result[provider].baseUrl,
+            region: result[provider].region,
+            model: result[provider].model,
+          });
+        } else {
+          console.log(`[Config] ${provider} API配置:`, {
+            enabled: result[provider].enabled,
+            hasApiKey: !!result[provider].apiKey,
+            baseUrl: result[provider].baseUrl,
+          });
+        }
       }
 
-      console.log('[Config] 配置文件解析完成:', {
-        apiKey: apiKey ? apiKey.substring(0, 8) + '...' : '未配置',
-        baseUrl
-      });
+      console.log('[Config] 配置文件解析完成');
+      return result;
     } else {
-      console.error('[Config] 配置文件不存在:', appConfigPath);
+      console.warn('[Config] 配置文件不存在，使用默认配置:', appConfigPath);
+      return defaultConfigs;
     }
   } catch (error) {
-    console.error('[Config] 读取app-config.json失败:', {
-      error: error.message,
-      path: appConfigPath,
-      stack: error.stack
-    });
+    console.error('[Config] 读取app-config.json失败:', error.message);
+    return defaultConfigs;
   }
+}
 
-  // 直接返回配置值，不使用环境变量
-  let defaultWebappId = '';
-  if (runningHubConfig && runningHubConfig.defaultWebappId) {
-    defaultWebappId = runningHubConfig.defaultWebappId;
-  }
+// 读取RunningHub配置（保持向后兼容）
+function getRunningHubConfig() {
+  const allApis = getAllApisConfig();
+  const runningHubConfig = allApis.runninghub || {};
 
   return {
-    API_BASE_URL: baseUrl || 'https://www.runninghub.cn',
-    DEFAULT_API_KEY: apiKey,
-    DEFAULT_WEBAPP_ID: defaultWebappId,
+    API_BASE_URL: runningHubConfig.baseUrl || 'https://www.runninghub.cn',
+    DEFAULT_API_KEY: runningHubConfig.apiKey || '',
+    DEFAULT_WEBAPP_ID: '',
   };
 }
 
@@ -140,8 +161,11 @@ const config = {
   MAX_HISTORY_COUNT: 500,
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
 
-  // RunningHub 配置
+  // RunningHub 配置（向后兼容）
   RUNNINGHUB: getRunningHubConfig(),
+
+  // 所有 API 配置
+  APIS: getAllApisConfig(),
 };
 
 // 导出配置和工具函数

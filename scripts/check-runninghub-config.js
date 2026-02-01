@@ -15,15 +15,32 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 从 app-config.json 读取配置
+function readAppConfig() {
+  const configPath = path.join(__dirname, '..', 'data', 'app-config.json');
+  try {
+    if (fs.existsSync(configPath)) {
+      const data = fs.readFileSync(configPath, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('读取 app-config.json 失败:', error.message);
+  }
+  return null;
+}
+
 // 获取配置
 function getConfig() {
+  const appConfig = readAppConfig();
+  const runningHubConfig = appConfig?.apis?.runninghub || {};
+
   const config = {
     backendUrl: 'http://127.0.0.1:8766',
-    runningHubApiKey: process.env.RUNNINGHUB_API_KEY || '',
-    runningHubWebAppId: process.env.RUNNINGHUB_WEBAPP_ID || '',
-    runningHubBaseUrl: process.env.RUNNINGHUB_API_BASE_URL || 'https://www.runninghub.cn'
+    runningHubApiKey: runningHubConfig.apiKey || '',
+    runningHubWebAppId: runningHubConfig.defaultWebappId || '',
+    runningHubBaseUrl: runningHubConfig.baseUrl || 'https://www.runninghub.cn'
   };
-  
+
   return config;
 }
 
@@ -90,7 +107,7 @@ function checkConfiguration() {
   const issues = [];
   
   if (!config.runningHubApiKey) {
-    issues.push('❌ RUNNINGHUB_API_KEY未配置');
+    issues.push('❌ RunningHub API Key未配置（请在 data/app-config.json 中设置）');
   } else {
     console.log('✅ API Key已配置');
   }

@@ -1132,7 +1132,7 @@ router.post('/save_nodes', async (req, res) => {
             }
           }
 
-          // 处理文件结果
+           // 处理文件结果
           if (outputData.files && Array.isArray(outputData.files)) {
             for (const fileUrl of outputData.files) {
               const downloadResult = await FileHelper.downloadAndSave(fileUrl, 'output');
@@ -1140,6 +1140,39 @@ router.post('/save_nodes', async (req, res) => {
                 localOutput.files.push(downloadResult.localUrl);
               } else {
                 localOutput.files.push(fileUrl);
+              }
+            }
+          }
+
+          // 处理 results 数组（RunningHub 新格式）
+          if (outputData.results && Array.isArray(outputData.results)) {
+            console.log('[RunningHub] 检测到 results 格式，共 ' + outputData.results.length + ' 个结果');
+            for (const item of outputData.results) {
+              if (item.url) {
+                const ext = item.url.split('/').pop()?.split('.').pop() || item.outputType?.toLowerCase() || '';
+                const downloadResult = await FileHelper.downloadAndSave(item.url, 'output');
+                if (downloadResult.success) {
+                  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
+                    localOutput.images.push(downloadResult.localUrl);
+                    console.log('[RunningHub] 保存结果图片:', downloadResult.localUrl);
+                  } else if (['mp4', 'mov', 'avi', 'webm'].includes(ext)) {
+                    localOutput.videos.push(downloadResult.localUrl);
+                    console.log('[RunningHub] 保存结果视频:', downloadResult.localUrl);
+                  } else {
+                    localOutput.files.push(downloadResult.localUrl);
+                    console.log('[RunningHub] 保存结果文件:', downloadResult.localUrl);
+                  }
+                } else {
+                  // 下载失败，使用原始 URL
+                  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
+                    localOutput.images.push(item.url);
+                  } else if (['mp4', 'mov', 'avi', 'webm'].includes(ext)) {
+                    localOutput.videos.push(item.url);
+                  } else {
+                    localOutput.files.push(item.url);
+                  }
+                  console.warn('[RunningHub] 保存失败，使用原始URL:', item.url);
+                }
               }
             }
           }

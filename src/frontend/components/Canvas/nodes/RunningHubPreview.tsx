@@ -58,8 +58,8 @@ export const RunningHubPreview: React.FC<RunningHubPreviewProps> = ({
       const text = typeof data === 'string' ? data : data.text;
       return (
         <div className="p-2 bg-gray-50 rounded border text-xs max-h-32 overflow-y-auto">
-          <div className="text-gray-</div>
-        600">{text}</div>
+          <div className="text-gray-600">{text}</div>
+        </div>
       );
     }
 
